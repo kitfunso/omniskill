@@ -15,7 +15,6 @@ Omniskill does not try to transpile the meaning of a skill. It keeps `SKILL.md` 
 
 - default root: `~/.codex/skills`
 - install model: native `SKILL.md` directories
-- note: current installs fail on name collisions rather than replacing existing skills
 
 ### OpenClaw
 
@@ -53,4 +52,7 @@ Omniskill does not try to transpile the meaning of a skill. It keeps `SKILL.md` 
 
 ## Collision policy
 
-Omniskill currently refuses to overwrite an existing target skill directory. This keeps target environments safe while the merge strategy is still explicit and simple.
+- default behavior: fail on collisions rather than overwrite an existing target skill
+- `--skip-existing`: leave colliding target skills alone and install the rest
+- `--prefix <value>`: rename only colliding installs into the target root
+- `--skip-existing` and `--prefix` cannot be combined

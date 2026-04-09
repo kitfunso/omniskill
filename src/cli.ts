@@ -36,6 +36,10 @@ function readValuesAfter(args: string[], startIndex: number): string[] {
   return values;
 }
 
+function hasFlag(args: string[], name: string): boolean {
+  return args.includes(name);
+}
+
 export async function runCli(args: string[]): Promise<CliResult> {
   try {
     const [command, subcommand] = args;
@@ -84,6 +88,7 @@ export async function runCli(args: string[]): Promise<CliResult> {
       }
       const targetRoot = readOption(args, "--target-root");
       const mode = readOption(args, "--mode") as "copy" | "link" | undefined;
+      const prefix = readOption(args, "--prefix");
       const skillNames = readValuesAfter(args, args.indexOf("--skills") + 1);
       return {
         exitCode: 0,
@@ -92,7 +97,9 @@ export async function runCli(args: string[]): Promise<CliResult> {
           target,
           targetRoot,
           mode,
-          skillNames: args.includes("--skills") ? skillNames : undefined
+          skillNames: hasFlag(args, "--skills") ? skillNames : undefined,
+          skipExisting: hasFlag(args, "--skip-existing"),
+          prefix
         }),
         stderr: ""
       };

@@ -39,7 +39,16 @@ npx tsx src/cli.ts list --skills-dir .
 npx tsx src/cli.ts install --target codex --skills-dir .
 ```
 
-If the target already contains a skill with the same name, Omniskill stops instead of overwriting it.
+If the target already contains skills with the same names, pick one explicit collision policy:
+
+```bash
+npx tsx src/cli.ts install --target codex --skills-dir . --skip-existing
+npx tsx src/cli.ts install --target codex --skills-dir . --prefix omniskill-
+```
+
+- `--skip-existing` keeps the target’s current skill and installs the rest
+- `--prefix omniskill-` renames only colliding installs
+- do not combine the two flags
 
 ## Run as MCP
 

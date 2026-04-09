@@ -56,6 +56,13 @@ npx tsx src/cli.ts install --target openclaw --skills-dir .
 npx tsx src/cli.ts install --target pi --skills-dir .
 ```
 
+Merge into a target that already has some skills:
+
+```bash
+npx tsx src/cli.ts install --target codex --skills-dir . --skip-existing
+npx tsx src/cli.ts install --target codex --skills-dir . --prefix omniskill-
+```
+
 Render a copy to an explicit output directory:
 
 ```bash
@@ -89,7 +96,7 @@ Lists the skills in the canonical catalog.
 ### `install`
 
 ```bash
-omniskill install --target <target> [--skills-dir <catalog-dir>] [--target-root <dir>] [--mode copy|link]
+omniskill install --target <target> [--skills-dir <catalog-dir>] [--target-root <dir>] [--mode copy|link] [--skip-existing | --prefix <value>]
 ```
 
 Installs catalog skills into a target root.
@@ -97,7 +104,9 @@ Installs catalog skills into a target root.
 Notes:
 
 - default mode is `link`
-- Omniskill refuses to overwrite an existing target skill directory
+- `--skip-existing` leaves colliding target skills untouched and installs the rest
+- `--prefix omniskill-` renames only colliding installs, for example `demo-skill` becomes `omniskill-demo-skill`
+- `--skip-existing` and `--prefix` are mutually exclusive
 - on Windows, link mode uses directory junctions
 
 ### `render`
@@ -143,4 +152,3 @@ skills/<name>/assets/
 
 - Phase 1 imports from Claude-style skill folders only
 - target renderers preserve `SKILL.md` rather than rewriting prompt content
-- install currently fails on destination collisions instead of auto-merging or forcing

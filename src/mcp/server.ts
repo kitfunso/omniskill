@@ -102,28 +102,41 @@ export async function createOmniskillMcpServer(
         target: z.enum(INSTALLABLE_TARGETS).describe("Target CLI"),
         targetRoot: z.string().optional().describe("Override target root"),
         mode: z.enum(["copy", "link"]).optional().describe("Install mode"),
-        skillNames: z.array(z.string()).optional().describe("Specific skills to install")
+        skillNames: z.array(z.string()).optional().describe("Specific skills to install"),
+        skipExisting: z
+          .boolean()
+          .optional()
+          .describe("Skip target collisions instead of failing"),
+        prefix: z
+          .string()
+          .optional()
+          .describe("Prefix applied only when a target skill name collides")
       }
     },
-    async ({ target, targetRoot, mode, skillNames }) => {
+    async ({ target, targetRoot, mode, skillNames, skipExisting, prefix }) => {
       const resolvedTargetRoot = targetRoot ?? getDefaultTargetRoot(target);
       const result = await installSkills({
         catalogDir: options.catalogDir,
         target,
         targetRoot: resolvedTargetRoot,
         mode: mode ?? "link",
-        skillNames
+        skillNames,
+        skipExisting,
+        prefix
       });
 
       return {
         content: [
           {
             type: "text",
-            text: `Installed ${result.installed.length} skill(s) to ${resolvedTargetRoot}`
+            text:
+              `Installed ${result.installed.length} skill(s) to ${resolvedTargetRoot}` +
+              `; skipped ${result.skipped.length}`
           }
         ],
         structuredContent: {
-          installed: result.installed
+          installed: result.installed,
+          skipped: result.skipped
         }
       };
     }

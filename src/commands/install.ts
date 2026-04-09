@@ -7,6 +7,8 @@ export async function runInstallCommand(options: {
   targetRoot?: string;
   mode?: InstallMode;
   skillNames?: string[];
+  skipExisting?: boolean;
+  prefix?: string;
 }): Promise<string> {
   const target = normalizeTargetName(options.target);
   if (target === "mcp") {
@@ -19,12 +21,17 @@ export async function runInstallCommand(options: {
     target,
     targetRoot,
     mode: options.mode ?? "link",
-    skillNames: options.skillNames
+    skillNames: options.skillNames,
+    skipExisting: options.skipExisting,
+    prefix: options.prefix
   });
+  const prefixed = result.installed.filter((skill) => skill.name !== skill.sourceName).length;
 
   return [
     `Target: ${target}`,
     `Installed: ${result.installed.length}`,
+    `Skipped: ${result.skipped.length}`,
+    `Prefixed: ${prefixed}`,
     `Mode: ${options.mode ?? "link"}`,
     `Target root: ${targetRoot}`
   ].join("\n");
