@@ -1,0 +1,23 @@
+{
+  "name": "plan-eng-review",
+  "description": "Eng manager-mode plan review. Lock in the execution plan — architecture,\ndata flow, diagrams, edge cases, test coverage, performance. Walks through\nissues interactively with opinionated recommendations. Use when asked to\n\"review the architecture\", \"engineering review\", or \"lock in the plan\".\nProactively suggest when the user has a plan or design doc and is about to\nstart coding — to catch architecture issues before implementation.\n",
+  "source": "C:\\Users\\skf_s\\.claude\\skills\\plan-eng-review",
+  "sourceFormat": "claude-code",
+  "canonicalPath": "skills\\plan-eng-review",
+  "frontmatter": {
+    "name": "plan-eng-review",
+    "version": "1.0.0",
+    "description": "Eng manager-mode plan review. Lock in the execution plan — architecture,\ndata flow, diagrams, edge cases, test coverage, performance. Walks through\nissues interactively with opinionated recommendations. Use when asked to\n\"review the architecture\", \"engineering review\", or \"lock in the plan\".\nProactively suggest when the user has a plan or design doc and is about to\nstart coding — to catch architecture issues before implementation.\n",
+    "benefits-from": [
+      "office-hours"
+    ],
+    "allowed-tools": [
+      "Read",
+      "Write",
+      "Grep",
+      "Glob",
+      "AskUserQuestion",
+      "Bash"
+    ]
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "name": "full-power",
+  "description": "Maximize agent capability by spawning sub-agents, leveraging all available resources, thinking deeply, and making no mistakes. Use when tackling complex or high-stakes tasks that demand thoroughness.",
+  "source": "C:\\Users\\skf_s\\.claude\\skills\\full-power",
+  "sourceFormat": "claude-code",
+  "canonicalPath": "skills\\full-power",
+  "frontmatter": {
+    "name": "full-power",
+    "description": "Maximize agent capability by spawning sub-agents, leveraging all available resources, thinking deeply, and making no mistakes. Use when tackling complex or high-stakes tasks that demand thoroughness."
+  }
+}

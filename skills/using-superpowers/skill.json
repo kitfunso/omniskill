@@ -1,0 +1,11 @@
+{
+  "name": "using-superpowers",
+  "description": "Use when starting any conversation - establishes how to find and use skills, requiring Skill tool invocation before ANY response including clarifying questions",
+  "source": "C:\\Users\\skf_s\\.claude\\skills\\using-superpowers",
+  "sourceFormat": "claude-code",
+  "canonicalPath": "skills\\using-superpowers",
+  "frontmatter": {
+    "name": "using-superpowers",
+    "description": "Use when starting any conversation - establishes how to find and use skills, requiring Skill tool invocation before ANY response including clarifying questions"
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "name": "platform-voice-adapter",
+  "description": "Adapt content tone, length, style, and formatting for specific social media platforms (Twitter, LinkedIn, Instagram, Threads, TikTok). Automatically adjusts voice from technical/casual to professional, optimizes for character limits, and applies platform-specific best practices. Use when reformatting content across channels or creating multi-platform campaigns.",
+  "source": "C:\\Users\\skf_s\\.claude\\skills\\platform-voice-adapter",
+  "sourceFormat": "claude-code",
+  "canonicalPath": "skills\\platform-voice-adapter",
+  "frontmatter": {
+    "name": "platform-voice-adapter",
+    "description": "Adapt content tone, length, style, and formatting for specific social media platforms (Twitter, LinkedIn, Instagram, Threads, TikTok). Automatically adjusts voice from technical/casual to professional, optimizes for character limits, and applies platform-specific best practices. Use when reformatting content across channels or creating multi-platform campaigns."
+  }
+}

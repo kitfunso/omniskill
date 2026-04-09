@@ -1,0 +1,11 @@
+{
+  "name": "systematic-debugging",
+  "description": "Use when encountering any bug, test failure, or unexpected behavior, before proposing fixes",
+  "source": "C:\\Users\\skf_s\\.claude\\skills\\systematic-debugging",
+  "sourceFormat": "claude-code",
+  "canonicalPath": "skills\\systematic-debugging",
+  "frontmatter": {
+    "name": "systematic-debugging",
+    "description": "Use when encountering any bug, test failure, or unexpected behavior, before proposing fixes"
+  }
+}

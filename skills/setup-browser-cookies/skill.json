@@ -1,0 +1,17 @@
+{
+  "name": "setup-browser-cookies",
+  "description": "Import cookies from your real browser (Comet, Chrome, Arc, Brave, Edge) into the\nheadless browse session. Opens an interactive picker UI where you select which\ncookie domains to import. Use before QA testing authenticated pages. Use when asked\nto \"import cookies\", \"login to the site\", or \"authenticate the browser\".\n",
+  "source": "C:\\Users\\skf_s\\.claude\\skills\\setup-browser-cookies",
+  "sourceFormat": "claude-code",
+  "canonicalPath": "skills\\setup-browser-cookies",
+  "frontmatter": {
+    "name": "setup-browser-cookies",
+    "version": "1.0.0",
+    "description": "Import cookies from your real browser (Comet, Chrome, Arc, Brave, Edge) into the\nheadless browse session. Opens an interactive picker UI where you select which\ncookie domains to import. Use before QA testing authenticated pages. Use when asked\nto \"import cookies\", \"login to the site\", or \"authenticate the browser\".\n",
+    "allowed-tools": [
+      "Bash",
+      "Read",
+      "AskUserQuestion"
+    ]
+  }
+}

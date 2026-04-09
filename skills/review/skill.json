@@ -1,0 +1,21 @@
+{
+  "name": "review",
+  "description": "Pre-landing PR review. Analyzes diff against the base branch for SQL safety, LLM trust\nboundary violations, conditional side effects, and other structural issues. Use when\nasked to \"review this PR\", \"code review\", \"pre-landing review\", or \"check my diff\".\nProactively suggest when the user is about to merge or land code changes.\n",
+  "source": "C:\\Users\\skf_s\\.claude\\skills\\review",
+  "sourceFormat": "claude-code",
+  "canonicalPath": "skills\\review",
+  "frontmatter": {
+    "name": "review",
+    "version": "1.0.0",
+    "description": "Pre-landing PR review. Analyzes diff against the base branch for SQL safety, LLM trust\nboundary violations, conditional side effects, and other structural issues. Use when\nasked to \"review this PR\", \"code review\", \"pre-landing review\", or \"check my diff\".\nProactively suggest when the user is about to merge or land code changes.\n",
+    "allowed-tools": [
+      "Bash",
+      "Read",
+      "Edit",
+      "Write",
+      "Grep",
+      "Glob",
+      "AskUserQuestion"
+    ]
+  }
+}

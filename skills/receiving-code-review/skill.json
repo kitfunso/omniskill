@@ -1,0 +1,11 @@
+{
+  "name": "receiving-code-review",
+  "description": "Use when receiving code review feedback, before implementing suggestions, especially if feedback seems unclear or technically questionable - requires technical rigor and verification, not performative agreement or blind implementation",
+  "source": "C:\\Users\\skf_s\\.claude\\skills\\receiving-code-review",
+  "sourceFormat": "claude-code",
+  "canonicalPath": "skills\\receiving-code-review",
+  "frontmatter": {
+    "name": "receiving-code-review",
+    "description": "Use when receiving code review feedback, before implementing suggestions, especially if feedback seems unclear or technically questionable - requires technical rigor and verification, not performative agreement or blind implementation"
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "name": "smoke-test",
+  "description": "Use when the user asks to smoke test, verify, or check the frontend after a deploy or frontend change. Runs Playwright smoke tests against production or local dev server.",
+  "source": "C:\\Users\\skf_s\\.claude\\skills\\smoke-test",
+  "sourceFormat": "claude-code",
+  "canonicalPath": "skills\\smoke-test",
+  "frontmatter": {
+    "name": "smoke-test",
+    "description": "Use when the user asks to smoke test, verify, or check the frontend after a deploy or frontend change. Runs Playwright smoke tests against production or local dev server."
+  }
+}

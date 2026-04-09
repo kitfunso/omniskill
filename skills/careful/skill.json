@@ -1,0 +1,30 @@
+{
+  "name": "careful",
+  "description": "Safety guardrails for destructive commands. Warns before rm -rf, DROP TABLE,\nforce-push, git reset --hard, kubectl delete, and similar destructive operations.\nUser can override each warning. Use when touching prod, debugging live systems,\nor working in a shared environment. Use when asked to \"be careful\", \"safety mode\",\n\"prod mode\", or \"careful mode\".\n",
+  "source": "C:\\Users\\skf_s\\.claude\\skills\\careful",
+  "sourceFormat": "claude-code",
+  "canonicalPath": "skills\\careful",
+  "frontmatter": {
+    "name": "careful",
+    "version": "0.1.0",
+    "description": "Safety guardrails for destructive commands. Warns before rm -rf, DROP TABLE,\nforce-push, git reset --hard, kubectl delete, and similar destructive operations.\nUser can override each warning. Use when touching prod, debugging live systems,\nor working in a shared environment. Use when asked to \"be careful\", \"safety mode\",\n\"prod mode\", or \"careful mode\".\n",
+    "allowed-tools": [
+      "Bash",
+      "Read"
+    ],
+    "hooks": {
+      "PreToolUse": [
+        {
+          "matcher": "Bash",
+          "hooks": [
+            {
+              "type": "command",
+              "command": "bash ${CLAUDE_SKILL_DIR}/bin/check-careful.sh",
+              "statusMessage": "Checking for destructive commands..."
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

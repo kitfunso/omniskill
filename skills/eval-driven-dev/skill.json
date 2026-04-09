@@ -1,0 +1,11 @@
+{
+  "name": "eval-driven-dev",
+  "description": "Eval-Driven Development (EDD) — treating evals as unit tests for AI-assisted development. Use when building or modifying AI workflows, agent pipelines, prompt engineering, or any feature where output quality needs measurement. Define success criteria BEFORE implementing.",
+  "source": "C:\\Users\\skf_s\\.claude\\skills\\eval-driven-dev",
+  "sourceFormat": "claude-code",
+  "canonicalPath": "skills\\eval-driven-dev",
+  "frontmatter": {
+    "name": "eval-driven-dev",
+    "description": "Eval-Driven Development (EDD) — treating evals as unit tests for AI-assisted development. Use when building or modifying AI workflows, agent pipelines, prompt engineering, or any feature where output quality needs measurement. Define success criteria BEFORE implementing."
+  }
+}

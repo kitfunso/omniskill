@@ -1,0 +1,11 @@
+{
+  "name": "brainstorming",
+  "description": "You MUST use this before any creative work - creating features, building components, adding functionality, or modifying behavior. Explores user intent, requirements and design before implementation.",
+  "source": "C:\\Users\\skf_s\\.claude\\skills\\brainstorming",
+  "sourceFormat": "claude-code",
+  "canonicalPath": "skills\\brainstorming",
+  "frontmatter": {
+    "name": "brainstorming",
+    "description": "You MUST use this before any creative work - creating features, building components, adding functionality, or modifying behavior. Explores user intent, requirements and design before implementation."
+  }
+}

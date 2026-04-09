@@ -1,0 +1,11 @@
+{
+  "name": "strategic-compact",
+  "description": "Guide for when to use /compact strategically. Use when context is getting large, when transitioning between task phases (research→planning→implementation), or when the user asks about compaction timing. Also use when tool call count is high or context feels stale.",
+  "source": "C:\\Users\\skf_s\\.claude\\skills\\strategic-compact",
+  "sourceFormat": "claude-code",
+  "canonicalPath": "skills\\strategic-compact",
+  "frontmatter": {
+    "name": "strategic-compact",
+    "description": "Guide for when to use /compact strategically. Use when context is getting large, when transitioning between task phases (research→planning→implementation), or when the user asks about compaction timing. Also use when tool call count is high or context feels stale."
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "name": "search-first",
+  "description": "Research-before-coding workflow. Use BEFORE implementing any significant feature to check for existing libraries, MCP servers, patterns, or solutions. Prevents reinventing the wheel. Use when adding new dependencies, building integrations, or starting features that might have existing solutions.",
+  "source": "C:\\Users\\skf_s\\.claude\\skills\\search-first",
+  "sourceFormat": "claude-code",
+  "canonicalPath": "skills\\search-first",
+  "frontmatter": {
+    "name": "search-first",
+    "description": "Research-before-coding workflow. Use BEFORE implementing any significant feature to check for existing libraries, MCP servers, patterns, or solutions. Prevents reinventing the wheel. Use when adding new dependencies, building integrations, or starting features that might have existing solutions."
+  }
+}

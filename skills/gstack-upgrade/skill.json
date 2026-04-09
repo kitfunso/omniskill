@@ -1,0 +1,18 @@
+{
+  "name": "gstack-upgrade",
+  "description": "Upgrade gstack to the latest version. Detects global vs vendored install,\nruns the upgrade, and shows what's new. Use when asked to \"upgrade gstack\",\n\"update gstack\", or \"get latest version\".\n",
+  "source": "C:\\Users\\skf_s\\.claude\\skills\\gstack-upgrade",
+  "sourceFormat": "claude-code",
+  "canonicalPath": "skills\\gstack-upgrade",
+  "frontmatter": {
+    "name": "gstack-upgrade",
+    "version": "1.1.0",
+    "description": "Upgrade gstack to the latest version. Detects global vs vendored install,\nruns the upgrade, and shows what's new. Use when asked to \"upgrade gstack\",\n\"update gstack\", or \"get latest version\".\n",
+    "allowed-tools": [
+      "Bash",
+      "Read",
+      "Write",
+      "AskUserQuestion"
+    ]
+  }
+}

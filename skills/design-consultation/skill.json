@@ -1,0 +1,22 @@
+{
+  "name": "design-consultation",
+  "description": "Design consultation: understands your product, researches the landscape, proposes a\ncomplete design system (aesthetic, typography, color, layout, spacing, motion), and\ngenerates font+color preview pages. Creates DESIGN.md as your project's design source\nof truth. For existing sites, use /plan-design-review to infer the system instead.\nUse when asked to \"design system\", \"brand guidelines\", or \"create DESIGN.md\".\nProactively suggest when starting a new project's UI with no existing\ndesign system or DESIGN.md.\n",
+  "source": "C:\\Users\\skf_s\\.claude\\skills\\design-consultation",
+  "sourceFormat": "claude-code",
+  "canonicalPath": "skills\\design-consultation",
+  "frontmatter": {
+    "name": "design-consultation",
+    "version": "1.0.0",
+    "description": "Design consultation: understands your product, researches the landscape, proposes a\ncomplete design system (aesthetic, typography, color, layout, spacing, motion), and\ngenerates font+color preview pages. Creates DESIGN.md as your project's design source\nof truth. For existing sites, use /plan-design-review to infer the system instead.\nUse when asked to \"design system\", \"brand guidelines\", or \"create DESIGN.md\".\nProactively suggest when starting a new project's UI with no existing\ndesign system or DESIGN.md.\n",
+    "allowed-tools": [
+      "Bash",
+      "Read",
+      "Write",
+      "Edit",
+      "Glob",
+      "Grep",
+      "AskUserQuestion",
+      "WebSearch"
+    ]
+  }
+}

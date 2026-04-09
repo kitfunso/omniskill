@@ -1,0 +1,11 @@
+{
+  "name": "roll-check",
+  "description": "Check and fix futures contract roll adjustments. Detects when active contracts\nhave rolled since signal entry, adjusts signal_price by the roll spread to\nmaintain PnL continuity, and updates Supabase + local files. Use when asked to\n\"check rolls\", \"contract roll\", \"roll check\", \"roll adjustment\", or when\ninvestigating price jumps on active positions.\n",
+  "source": "C:\\Users\\skf_s\\.claude\\skills\\roll-check",
+  "sourceFormat": "claude-code",
+  "canonicalPath": "skills\\roll-check",
+  "frontmatter": {
+    "name": "roll-check",
+    "description": "Check and fix futures contract roll adjustments. Detects when active contracts\nhave rolled since signal entry, adjusts signal_price by the roll spread to\nmaintain PnL continuity, and updates Supabase + local files. Use when asked to\n\"check rolls\", \"contract roll\", \"roll check\", \"roll adjustment\", or when\ninvestigating price jumps on active positions.\n"
+  }
+}

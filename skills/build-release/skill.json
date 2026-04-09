@@ -1,0 +1,11 @@
+{
+  "name": "build-release",
+  "description": "Bump iOS/Android build numbers, build the Android .aab bundle, commit and push. Use this skill whenever the user says 'build release', 'bump build', 'build aab', 'bump and push', 'bump ios build number', 'build the aab file', or any combination of bumping build numbers, building Android bundles, and pushing. Also trigger when user says 'release build' or 'ship the build'.",
+  "source": "C:\\Users\\skf_s\\.claude\\skills\\build-release",
+  "sourceFormat": "claude-code",
+  "canonicalPath": "skills\\build-release",
+  "frontmatter": {
+    "name": "build-release",
+    "description": "Bump iOS/Android build numbers, build the Android .aab bundle, commit and push. Use this skill whenever the user says 'build release', 'bump build', 'build aab', 'bump and push', 'bump ios build number', 'build the aab file', or any combination of bumping build numbers, building Android bundles, and pushing. Also trigger when user says 'release build' or 'ship the build'."
+  }
+}

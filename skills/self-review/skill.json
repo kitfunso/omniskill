@@ -1,0 +1,11 @@
+{
+  "name": "self-review",
+  "description": "Review all changes made in the current session for mistakes, missed requirements, and regressions. Use when the user asks to review changes, check work, or verify correctness before wrapping up.",
+  "source": "C:\\Users\\skf_s\\.claude\\skills\\self-review",
+  "sourceFormat": "claude-code",
+  "canonicalPath": "skills\\self-review",
+  "frontmatter": {
+    "name": "self-review",
+    "description": "Review all changes made in the current session for mistakes, missed requirements, and regressions. Use when the user asks to review changes, check work, or verify correctness before wrapping up."
+  }
+}

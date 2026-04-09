@@ -1,0 +1,11 @@
+{
+  "name": "subagent-driven-development",
+  "description": "Use when executing implementation plans with independent tasks in the current session",
+  "source": "C:\\Users\\skf_s\\.claude\\skills\\subagent-driven-development",
+  "sourceFormat": "claude-code",
+  "canonicalPath": "skills\\subagent-driven-development",
+  "frontmatter": {
+    "name": "subagent-driven-development",
+    "description": "Use when executing implementation plans with independent tasks in the current session"
+  }
+}

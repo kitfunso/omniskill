@@ -1,0 +1,11 @@
+{
+  "name": "executing-plans",
+  "description": "Use when you have a written implementation plan to execute in a separate session with review checkpoints",
+  "source": "C:\\Users\\skf_s\\.claude\\skills\\executing-plans",
+  "sourceFormat": "claude-code",
+  "canonicalPath": "skills\\executing-plans",
+  "frontmatter": {
+    "name": "executing-plans",
+    "description": "Use when you have a written implementation plan to execute in a separate session with review checkpoints"
+  }
+}

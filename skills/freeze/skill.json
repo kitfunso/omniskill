@@ -1,0 +1,41 @@
+{
+  "name": "freeze",
+  "description": "Restrict file edits to a specific directory for the session. Blocks Edit and\nWrite outside the allowed path. Use when debugging to prevent accidentally\n\"fixing\" unrelated code, or when you want to scope changes to one module.\nUse when asked to \"freeze\", \"restrict edits\", \"only edit this folder\",\nor \"lock down edits\".\n",
+  "source": "C:\\Users\\skf_s\\.claude\\skills\\freeze",
+  "sourceFormat": "claude-code",
+  "canonicalPath": "skills\\freeze",
+  "frontmatter": {
+    "name": "freeze",
+    "version": "0.1.0",
+    "description": "Restrict file edits to a specific directory for the session. Blocks Edit and\nWrite outside the allowed path. Use when debugging to prevent accidentally\n\"fixing\" unrelated code, or when you want to scope changes to one module.\nUse when asked to \"freeze\", \"restrict edits\", \"only edit this folder\",\nor \"lock down edits\".\n",
+    "allowed-tools": [
+      "Bash",
+      "Read",
+      "AskUserQuestion"
+    ],
+    "hooks": {
+      "PreToolUse": [
+        {
+          "matcher": "Edit",
+          "hooks": [
+            {
+              "type": "command",
+              "command": "bash ${CLAUDE_SKILL_DIR}/bin/check-freeze.sh",
+              "statusMessage": "Checking freeze boundary..."
+            }
+          ]
+        },
+        {
+          "matcher": "Write",
+          "hooks": [
+            {
+              "type": "command",
+              "command": "bash ${CLAUDE_SKILL_DIR}/bin/check-freeze.sh",
+              "statusMessage": "Checking freeze boundary..."
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

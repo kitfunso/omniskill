@@ -1,0 +1,11 @@
+{
+  "name": "project-scaffold",
+  "description": "Generate the four foundation documents for a new project: PRD, Architecture, AI Rules (CLAUDE.md), and Plan. Use when starting a new project, repo, or major initiative from scratch. Triggered by 'scaffold', 'new project', 'kickoff', 'project init', or 'set up a new project'.",
+  "source": "C:\\Users\\skf_s\\.claude\\skills\\project-scaffold",
+  "sourceFormat": "claude-code",
+  "canonicalPath": "skills\\project-scaffold",
+  "frontmatter": {
+    "name": "project-scaffold",
+    "description": "Generate the four foundation documents for a new project: PRD, Architecture, AI Rules (CLAUDE.md), and Plan. Use when starting a new project, repo, or major initiative from scratch. Triggered by 'scaffold', 'new project', 'kickoff', 'project init', or 'set up a new project'."
+  }
+}

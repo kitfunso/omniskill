@@ -1,0 +1,11 @@
+{
+  "name": "writing-skills",
+  "description": "Use when creating new skills, editing existing skills, or verifying skills work before deployment",
+  "source": "C:\\Users\\skf_s\\.claude\\skills\\writing-skills",
+  "sourceFormat": "claude-code",
+  "canonicalPath": "skills\\writing-skills",
+  "frontmatter": {
+    "name": "writing-skills",
+    "description": "Use when creating new skills, editing existing skills, or verifying skills work before deployment"
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "name": "model-improve",
+  "description": "Full commodity model improvement workflow — from audit through exhaustive feature engineering, two-stage selection, Optuna optimization, multi-layer validation, data source verification, and production deployment. Use PROACTIVELY when the user asks to improve, rebuild, develop, upgrade, or remodel any commodity trading model. Also trigger when user mentions feature engineering, model performance, Sharpe improvement, or adding new features to a commodity model. This is the primary workflow for all model development work in the Quantamental project.",
+  "source": "C:\\Users\\skf_s\\.claude\\skills\\model-improve",
+  "sourceFormat": "claude-code",
+  "canonicalPath": "skills\\model-improve",
+  "frontmatter": {
+    "name": "model-improve",
+    "description": "Full commodity model improvement workflow — from audit through exhaustive feature engineering, two-stage selection, Optuna optimization, multi-layer validation, data source verification, and production deployment. Use PROACTIVELY when the user asks to improve, rebuild, develop, upgrade, or remodel any commodity trading model. Also trigger when user mentions feature engineering, model performance, Sharpe improvement, or adding new features to a commodity model. This is the primary workflow for all model development work in the Quantamental project."
+  }
+}

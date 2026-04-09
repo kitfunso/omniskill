@@ -1,0 +1,11 @@
+{
+  "name": "template-skill",
+  "description": "Replace with description of the skill and when Claude should use it.",
+  "source": "C:\\Users\\skf_s\\.claude\\skills\\template-skill",
+  "sourceFormat": "claude-code",
+  "canonicalPath": "skills\\template-skill",
+  "frontmatter": {
+    "name": "template-skill",
+    "description": "Replace with description of the skill and when Claude should use it."
+  }
+}

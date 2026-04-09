@@ -1,0 +1,11 @@
+{
+  "name": "dispatching-parallel-agents",
+  "description": "Use when facing 2+ independent tasks that can be worked on without shared state or sequential dependencies",
+  "source": "C:\\Users\\skf_s\\.claude\\skills\\dispatching-parallel-agents",
+  "sourceFormat": "claude-code",
+  "canonicalPath": "skills\\dispatching-parallel-agents",
+  "frontmatter": {
+    "name": "dispatching-parallel-agents",
+    "description": "Use when facing 2+ independent tasks that can be worked on without shared state or sequential dependencies"
+  }
+}

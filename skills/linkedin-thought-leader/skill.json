@@ -1,0 +1,11 @@
+{
+  "name": "linkedin-thought-leader",
+  "description": "Transform content into LinkedIn thought leadership posts using storytelling, personal anecdotes, professional insights, and algorithm-optimized formatting. Based on 100+ high-performing LinkedIn templates. Use for LinkedIn posts, articles, or professional content requiring authority positioning and engagement.",
+  "source": "C:\\Users\\skf_s\\.claude\\skills\\linkedin-thought-leader",
+  "sourceFormat": "claude-code",
+  "canonicalPath": "skills\\linkedin-thought-leader",
+  "frontmatter": {
+    "name": "linkedin-thought-leader",
+    "description": "Transform content into LinkedIn thought leadership posts using storytelling, personal anecdotes, professional insights, and algorithm-optimized formatting. Based on 100+ high-performing LinkedIn templates. Use for LinkedIn posts, articles, or professional content requiring authority positioning and engagement."
+  }
+}

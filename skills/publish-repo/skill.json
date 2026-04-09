@@ -1,0 +1,11 @@
+{
+  "name": "publish-repo",
+  "description": "Ship an npm package release: bump version, update CHANGELOG/README/manifests, build, test, commit, tag, npm publish, push, and optionally install globally. Use when the user says 'publish', 'release', 'ship the package', 'bump version and push', or 'update docs and publish npm'. Works for any Node.js repo with a package.json.",
+  "source": "C:\\Users\\skf_s\\.claude\\skills\\publish-repo",
+  "sourceFormat": "claude-code",
+  "canonicalPath": "skills\\publish-repo",
+  "frontmatter": {
+    "name": "publish-repo",
+    "description": "Ship an npm package release: bump version, update CHANGELOG/README/manifests, build, test, commit, tag, npm publish, push, and optionally install globally. Use when the user says 'publish', 'release', 'ship the package', 'bump version and push', or 'update docs and publish npm'. Works for any Node.js repo with a package.json."
+  }
+}

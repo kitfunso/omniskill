@@ -1,0 +1,45 @@
+{
+  "name": "investigate",
+  "description": "Systematic debugging with root cause investigation. Four phases: investigate,\nanalyze, hypothesize, implement. Iron Law: no fixes without root cause.\nUse when asked to \"debug this\", \"fix this bug\", \"why is this broken\",\n\"investigate this error\", or \"root cause analysis\".\nProactively suggest when the user reports errors, unexpected behavior, or\nis troubleshooting why something stopped working.\n",
+  "source": "C:\\Users\\skf_s\\.claude\\skills\\investigate",
+  "sourceFormat": "claude-code",
+  "canonicalPath": "skills\\investigate",
+  "frontmatter": {
+    "name": "investigate",
+    "version": "1.0.0",
+    "description": "Systematic debugging with root cause investigation. Four phases: investigate,\nanalyze, hypothesize, implement. Iron Law: no fixes without root cause.\nUse when asked to \"debug this\", \"fix this bug\", \"why is this broken\",\n\"investigate this error\", or \"root cause analysis\".\nProactively suggest when the user reports errors, unexpected behavior, or\nis troubleshooting why something stopped working.\n",
+    "allowed-tools": [
+      "Bash",
+      "Read",
+      "Write",
+      "Edit",
+      "Grep",
+      "Glob",
+      "AskUserQuestion"
+    ],
+    "hooks": {
+      "PreToolUse": [
+        {
+          "matcher": "Edit",
+          "hooks": [
+            {
+              "type": "command",
+              "command": "bash ${CLAUDE_SKILL_DIR}/../freeze/bin/check-freeze.sh",
+              "statusMessage": "Checking debug scope boundary..."
+            }
+          ]
+        },
+        {
+          "matcher": "Write",
+          "hooks": [
+            {
+              "type": "command",
+              "command": "bash ${CLAUDE_SKILL_DIR}/../freeze/bin/check-freeze.sh",
+              "statusMessage": "Checking debug scope boundary..."
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

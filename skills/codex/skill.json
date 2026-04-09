@@ -1,0 +1,20 @@
+{
+  "name": "codex",
+  "description": "OpenAI Codex CLI wrapper — three modes. Code review: independent diff review via\ncodex review with pass/fail gate. Challenge: adversarial mode that tries to break\nyour code. Consult: ask codex anything with session continuity for follow-ups.\nThe \"200 IQ autistic developer\" second opinion. Use when asked to \"codex review\",\n\"codex challenge\", \"ask codex\", \"second opinion\", or \"consult codex\".\n",
+  "source": "C:\\Users\\skf_s\\.claude\\skills\\codex",
+  "sourceFormat": "claude-code",
+  "canonicalPath": "skills\\codex",
+  "frontmatter": {
+    "name": "codex",
+    "version": "1.0.0",
+    "description": "OpenAI Codex CLI wrapper — three modes. Code review: independent diff review via\ncodex review with pass/fail gate. Challenge: adversarial mode that tries to break\nyour code. Consult: ask codex anything with session continuity for follow-ups.\nThe \"200 IQ autistic developer\" second opinion. Use when asked to \"codex review\",\n\"codex challenge\", \"ask codex\", \"second opinion\", or \"consult codex\".\n",
+    "allowed-tools": [
+      "Bash",
+      "Read",
+      "Write",
+      "Glob",
+      "Grep",
+      "AskUserQuestion"
+    ]
+  }
+}
