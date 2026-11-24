@@ -46,7 +46,6 @@ describe('config', () => {
       expect(fs.existsSync(config.stateDir)).toBe(false);
       ensureStateDir(config);
       expect(fs.existsSync(config.stateDir)).toBe(true);
-      // Cleanup
       fs.rmSync(tmpDir, { recursive: true, force: true });
     });
 
@@ -55,9 +54,8 @@ describe('config', () => {
       const stateDir = path.join(tmpDir, '.gstack');
       fs.mkdirSync(stateDir, { recursive: true });
       const config = resolveConfig({ BROWSE_STATE_FILE: path.join(stateDir, 'browse.json') });
-      ensureStateDir(config); // should not throw
+      ensureStateDir(config);
       expect(fs.existsSync(config.stateDir)).toBe(true);
-      // Cleanup
       fs.rmSync(tmpDir, { recursive: true, force: true });
     });
 
@@ -98,20 +96,16 @@ describe('config', () => {
     test('logs warning to browse-server.log on non-ENOENT gitignore error', () => {
       const tmpDir = path.join(os.tmpdir(), `browse-gitignore-test-${Date.now()}`);
       fs.mkdirSync(tmpDir, { recursive: true });
-      // Create a read-only .gitignore (no .gstack/ entry → would try to append)
       fs.writeFileSync(path.join(tmpDir, '.gitignore'), 'node_modules/\n');
       fs.chmodSync(path.join(tmpDir, '.gitignore'), 0o444);
       const config = resolveConfig({ BROWSE_STATE_FILE: path.join(tmpDir, '.gstack', 'browse.json') });
-      ensureStateDir(config); // should not throw
-      // Verify warning was written to server log
+      ensureStateDir(config);
       const logPath = path.join(config.stateDir, 'browse-server.log');
       expect(fs.existsSync(logPath)).toBe(true);
       const logContent = fs.readFileSync(logPath, 'utf-8');
       expect(logContent).toContain('Warning: could not update .gitignore');
-      // .gitignore should remain unchanged
       const gitignoreContent = fs.readFileSync(path.join(tmpDir, '.gitignore'), 'utf-8');
       expect(gitignoreContent).toBe('node_modules/\n');
-      // Cleanup
       fs.chmodSync(path.join(tmpDir, '.gitignore'), 0o644);
       fs.rmSync(tmpDir, { recursive: true, force: true });
     });
@@ -129,13 +123,11 @@ describe('config', () => {
   describe('getRemoteSlug', () => {
     test('returns owner-repo format for current repo', () => {
       const slug = getRemoteSlug();
-      // This repo has an origin remote — should return a slug
       expect(slug).toBeTruthy();
       expect(slug).toMatch(/^[a-zA-Z0-9._-]+-[a-zA-Z0-9._-]+$/);
     });
 
     test('parses SSH remote URLs', () => {
-      // Test the regex directly since we can't mock Bun.spawnSync easily
       const url = 'git@github.com:garrytan/gstack.git';
       const match = url.match(/[:/]([^/]+)\/([^/]+?)(?:\.git)?$/);
       expect(match).not.toBeNull();
@@ -170,14 +162,12 @@ describe('config', () => {
       fs.writeFileSync(versionFile, 'abc123def\n');
       const result = readVersionHash(path.join(tmpDir, 'browse'));
       expect(result).toBe('abc123def');
-      // Cleanup
       fs.rmSync(tmpDir, { recursive: true, force: true });
     });
   });
 });
 
 describe('resolveServerScript', () => {
-  // Import the function from cli.ts
   const { resolveServerScript } = require('../src/cli');
 
   test('uses BROWSE_SERVER_SCRIPT env when set', () => {
@@ -204,7 +194,6 @@ describe('resolveNodeServerScript', () => {
     const srcDir = path.resolve(__dirname, '../src');
     const distFile = path.resolve(srcDir, '..', 'dist', 'server-node.mjs');
     const fs = require('fs');
-    // Only test if the file exists (it may not be built yet)
     if (fs.existsSync(distFile)) {
       const result = resolveNodeServerScript(srcDir, '');
       expect(result).toBe(distFile);
@@ -243,7 +232,6 @@ describe('version mismatch detection', () => {
   test('no mismatch when either version is null', () => {
     const currentVersion: string | null = null;
     const stateVersion: string | undefined = 'abc123';
-    // Version mismatch only triggers when both are present
     const shouldRestart = currentVersion !== null && stateVersion !== undefined && currentVersion !== stateVersion;
     expect(shouldRestart).toBe(false);
   });

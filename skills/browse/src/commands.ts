@@ -36,19 +36,16 @@ export const META_COMMANDS = new Set([
 export const ALL_COMMANDS = new Set([...READ_COMMANDS, ...WRITE_COMMANDS, ...META_COMMANDS]);
 
 export const COMMAND_DESCRIPTIONS: Record<string, { category: string; description: string; usage?: string }> = {
-  // Navigation
   'goto':    { category: 'Navigation', description: 'Navigate to URL', usage: 'goto <url>' },
   'back':    { category: 'Navigation', description: 'History back' },
   'forward': { category: 'Navigation', description: 'History forward' },
   'reload':  { category: 'Navigation', description: 'Reload page' },
   'url':     { category: 'Navigation', description: 'Print current URL' },
-  // Reading
   'text':    { category: 'Reading', description: 'Cleaned page text' },
   'html':    { category: 'Reading', description: 'innerHTML of selector (throws if not found), or full page HTML if no selector given', usage: 'html [selector]' },
   'links':   { category: 'Reading', description: 'All links as "text → href"' },
   'forms':   { category: 'Reading', description: 'Form fields as JSON' },
   'accessibility': { category: 'Reading', description: 'Full ARIA tree' },
-  // Inspection
   'js':      { category: 'Inspection', description: 'Run JavaScript expression and return result as string', usage: 'js <expr>' },
   'eval':    { category: 'Inspection', description: 'Run JavaScript from file and return result as string (path must be under /tmp or cwd)', usage: 'eval <file>' },
   'css':     { category: 'Inspection', description: 'Computed CSS value', usage: 'css <sel> <prop>' },
@@ -60,7 +57,6 @@ export const COMMAND_DESCRIPTIONS: Record<string, { category: string; descriptio
   'cookies': { category: 'Inspection', description: 'All cookies as JSON' },
   'storage': { category: 'Inspection', description: 'Read all localStorage + sessionStorage as JSON, or set <key> <value> to write localStorage', usage: 'storage [set k v]' },
   'perf':    { category: 'Inspection', description: 'Page load timings' },
-  // Interaction
   'click':   { category: 'Interaction', description: 'Click element', usage: 'click <sel>' },
   'fill':    { category: 'Interaction', description: 'Fill input', usage: 'fill <sel> <val>' },
   'select':  { category: 'Interaction', description: 'Select dropdown option by value, label, or visible text', usage: 'select <sel> <val>' },
@@ -78,29 +74,23 @@ export const COMMAND_DESCRIPTIONS: Record<string, { category: string; descriptio
   'useragent': { category: 'Interaction', description: 'Set user agent', usage: 'useragent <string>' },
   'dialog-accept': { category: 'Interaction', description: 'Auto-accept next alert/confirm/prompt. Optional text is sent as the prompt response', usage: 'dialog-accept [text]' },
   'dialog-dismiss': { category: 'Interaction', description: 'Auto-dismiss next dialog' },
-  // Visual
   'screenshot': { category: 'Visual', description: 'Save screenshot (supports element crop via CSS/@ref, --clip region, --viewport)', usage: 'screenshot [--viewport] [--clip x,y,w,h] [selector|@ref] [path]' },
   'pdf':     { category: 'Visual', description: 'Save as PDF', usage: 'pdf [path]' },
   'responsive': { category: 'Visual', description: 'Screenshots at mobile (375x812), tablet (768x1024), desktop (1280x720). Saves as {prefix}-mobile.png etc.', usage: 'responsive [prefix]' },
   'diff':    { category: 'Visual', description: 'Text diff between pages', usage: 'diff <url1> <url2>' },
-  // Tabs
   'tabs':    { category: 'Tabs', description: 'List open tabs' },
   'tab':     { category: 'Tabs', description: 'Switch to tab', usage: 'tab <id>' },
   'newtab':  { category: 'Tabs', description: 'Open new tab', usage: 'newtab [url]' },
   'closetab':{ category: 'Tabs', description: 'Close tab', usage: 'closetab [id]' },
-  // Server
   'status':  { category: 'Server', description: 'Health check' },
   'stop':    { category: 'Server', description: 'Shutdown server' },
   'restart': { category: 'Server', description: 'Restart server' },
-  // Meta
   'snapshot':{ category: 'Snapshot', description: 'Accessibility tree with @e refs for element selection. Flags: -i interactive only, -c compact, -d N depth limit, -s sel scope, -D diff vs previous, -a annotated screenshot, -o path output, -C cursor-interactive @c refs', usage: 'snapshot [flags]' },
   'chain':   { category: 'Meta', description: 'Run commands from JSON stdin. Format: [["cmd","arg1",...],...]' },
-  // Handoff
   'handoff': { category: 'Server', description: 'Open visible Chrome at current page for user takeover', usage: 'handoff [message]' },
   'resume':  { category: 'Server', description: 'Re-snapshot after user takeover, return control to AI', usage: 'resume' },
 };
 
-// Load-time validation: descriptions must cover exactly the command sets
 const allCmds = new Set([...READ_COMMANDS, ...WRITE_COMMANDS, ...META_COMMANDS]);
 const descKeys = new Set(Object.keys(COMMAND_DESCRIPTIONS));
 for (const cmd of allCmds) {

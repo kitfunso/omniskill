@@ -1,13 +1,3 @@
-/**
- * Bun API polyfill for Node.js — Windows compatibility layer.
- *
- * On Windows, Bun can't launch or connect to Playwright's Chromium
- * (oven-sh/bun#4253, #9911). The browse server falls back to running
- * under Node.js with this polyfill providing Bun API equivalents.
- *
- * Loaded via --require before the transpiled server bundle.
- */
-
 'use strict';
 
 const http = require('http');

@@ -1,21 +1,10 @@
-/**
- * gstack CLI — thin wrapper that talks to the persistent server
- *
- * Flow:
- *   1. Read .gstack/browse.json for port + token
- *   2. If missing or stale PID → start server in background
- *   3. Health check + version mismatch detection
- *   4. Send command via HTTP POST
- *   5. Print response to stdout (or stderr for errors)
- */
-
 import * as fs from 'fs';
 import * as path from 'path';
 import { resolveConfig, ensureStateDir, readVersionHash } from './config';
 
 const config = resolveConfig();
 const IS_WINDOWS = process.platform === 'win32';
-const MAX_START_WAIT = IS_WINDOWS ? 15000 : 8000; // Node+Chromium takes longer on Windows
+const MAX_START_WAIT = IS_WINDOWS ? 15000 : 8000;
 
 export function resolveServerScript(
   env: Record<string, string | undefined> = process.env,
@@ -26,9 +15,6 @@ export function resolveServerScript(
     return env.BROWSE_SERVER_SCRIPT;
   }
 
-  // Dev mode: cli.ts runs directly from browse/src
-  // On macOS/Linux, import.meta.dir starts with /
-  // On Windows, it starts with a drive letter (e.g., C:\...)
   if (!metaDir.includes('$bunfs')) {
     const direct = path.resolve(metaDir, 'server.ts');
     if (fs.existsSync(direct)) {
@@ -36,7 +22,6 @@ export function resolveServerScript(
     }
   }
 
-  // Compiled binary: derive the source tree from browse/dist/browse
   if (execPath) {
     const adjacent = path.resolve(path.dirname(execPath), '..', 'src', 'server.ts');
     if (fs.existsSync(adjacent)) {
@@ -59,13 +44,11 @@ export function resolveNodeServerScript(
   metaDir: string = import.meta.dir,
   execPath: string = process.execPath
 ): string | null {
-  // Dev mode
   if (!metaDir.includes('$bunfs')) {
     const distScript = path.resolve(metaDir, '..', 'dist', 'server-node.mjs');
     if (fs.existsSync(distScript)) return distScript;
   }
 
-  // Compiled binary: browse/dist/browse → browse/dist/server-node.mjs
   if (execPath) {
     const adjacent = path.resolve(path.dirname(execPath), 'server-node.mjs');
     if (fs.existsSync(adjacent)) return adjacent;
@@ -85,7 +68,6 @@ interface ServerState {
   binaryVersion?: string;
 }
 
-// ─── State File ────────────────────────────────────────────────
 function readState(): ServerState | null {
   try {
     const data = fs.readFileSync(config.stateFile, 'utf-8');
@@ -104,28 +86,21 @@ function isProcessAlive(pid: number): boolean {
   }
 }
 
-// ─── Process Management ─────────────────────────────────────────
 async function killServer(pid: number): Promise<void> {
   if (!isProcessAlive(pid)) return;
 
   try { process.kill(pid, 'SIGTERM'); } catch { return; }
 
-  // Wait up to 2s for graceful shutdown
   const deadline = Date.now() + 2000;
   while (Date.now() < deadline && isProcessAlive(pid)) {
     await Bun.sleep(100);
   }
 
-  // Force kill if still alive
   if (isProcessAlive(pid)) {
     try { process.kill(pid, 'SIGKILL'); } catch {}
   }
 }
 
-/**
- * Clean up legacy /tmp/browse-server*.json files from before project-local state.
- * Verifies PID ownership before sending signals.
- */
 function cleanupLegacyState(): void {
   try {
     const files = fs.readdirSync('/tmp').filter(f => f.startsWith('browse-server') && f.endsWith('.json'));
@@ -134,7 +109,6 @@ function cleanupLegacyState(): void {
       try {
         const data = JSON.parse(fs.readFileSync(fullPath, 'utf-8'));
         if (data.pid && isProcessAlive(data.pid)) {
-          // Verify this is actually a browse server before killing
           const check = Bun.spawnSync(['ps', '-p', String(data.pid), '-o', 'command='], {
             stdout: 'pipe', stderr: 'pipe', timeout: 2000,
           });
@@ -148,7 +122,6 @@ function cleanupLegacyState(): void {
         // Best effort — skip files we can't parse or clean up
       }
     }
-    // Clean up legacy log files too
     const logFiles = fs.readdirSync('/tmp').filter(f =>
       f.startsWith('browse-console') || f.startsWith('browse-network') || f.startsWith('browse-dialog')
     );
@@ -160,16 +133,11 @@ function cleanupLegacyState(): void {
   }
 }
 
-// ─── Server Lifecycle ──────────────────────────────────────────
 async function startServer(): Promise<ServerState> {
   ensureStateDir(config);
 
-  // Clean up stale state file
   try { fs.unlinkSync(config.stateFile); } catch {}
 
-  // Start server as detached background process.
-  // On Windows, Bun can't launch/connect to Playwright's Chromium (oven-sh/bun#4253, #9911).
-  // Fall back to running the server under Node.js with Bun API polyfills.
   const useNode = IS_WINDOWS && NODE_SERVER_SCRIPT;
   const serverCmd = useNode
     ? ['node', NODE_SERVER_SCRIPT]
@@ -179,10 +147,8 @@ async function startServer(): Promise<ServerState> {
     env: { ...process.env, BROWSE_STATE_FILE: config.stateFile },
   });
 
-  // Don't hold the CLI open
   proc.unref();
 
-  // Wait for state file to appear
   const start = Date.now();
   while (Date.now() - start < MAX_START_WAIT) {
     const state = readState();
@@ -192,8 +158,6 @@ async function startServer(): Promise<ServerState> {
     await Bun.sleep(100);
   }
 
-  // If we get here, server didn't start in time
-  // Try to read stderr for error message
   const stderr = proc.stderr;
   if (stderr) {
     const reader = stderr.getReader();
@@ -210,7 +174,6 @@ async function ensureServer(): Promise<ServerState> {
   const state = readState();
 
   if (state && isProcessAlive(state.pid)) {
-    // Check for binary version mismatch (auto-restart on update)
     const currentVersion = readVersionHash();
     if (currentVersion && state.binaryVersion && currentVersion !== state.binaryVersion) {
       console.error('[browse] Binary updated, restarting server...');
@@ -218,7 +181,6 @@ async function ensureServer(): Promise<ServerState> {
       return startServer();
     }
 
-    // Server appears alive — do a health check
     try {
       const resp = await fetch(`http://127.0.0.1:${state.port}/health`, {
         signal: AbortSignal.timeout(2000),
@@ -234,12 +196,10 @@ async function ensureServer(): Promise<ServerState> {
     }
   }
 
-  // Need to (re)start
   console.error('[browse] Starting server...');
   return startServer();
 }
 
-// ─── Command Dispatch ──────────────────────────────────────────
 async function sendCommand(state: ServerState, command: string, args: string[], retries = 0): Promise<void> {
   const body = JSON.stringify({ command, args });
 
@@ -255,7 +215,6 @@ async function sendCommand(state: ServerState, command: string, args: string[], 
     });
 
     if (resp.status === 401) {
-      // Token mismatch — server may have restarted
       console.error('[browse] Auth failed — server may have restarted. Retrying...');
       const newState = readState();
       if (newState && newState.token !== state.token) {
@@ -270,7 +229,6 @@ async function sendCommand(state: ServerState, command: string, args: string[], 
       process.stdout.write(text);
       if (!text.endsWith('\n')) process.stdout.write('\n');
     } else {
-      // Try to parse as JSON error
       try {
         const err = JSON.parse(text);
         console.error(err.error || text);
@@ -285,7 +243,6 @@ async function sendCommand(state: ServerState, command: string, args: string[], 
       console.error('[browse] Command timed out after 30s');
       process.exit(1);
     }
-    // Connection error — server may have crashed
     if (err.code === 'ECONNREFUSED' || err.code === 'ECONNRESET' || err.message?.includes('fetch failed')) {
       if (retries >= 1) throw new Error('[browse] Server crashed twice in a row — aborting');
       console.error('[browse] Server connection lost. Restarting...');
@@ -296,7 +253,6 @@ async function sendCommand(state: ServerState, command: string, args: string[], 
   }
 }
 
-// ─── Main ──────────────────────────────────────────────────────
 async function main() {
   const args = process.argv.slice(2);
 
@@ -336,13 +292,11 @@ Refs:           After 'snapshot', use @e1, @e2... as selectors:
     process.exit(0);
   }
 
-  // One-time cleanup of legacy /tmp state files
   cleanupLegacyState();
 
   const command = args[0];
   const commandArgs = args.slice(1);
 
-  // Special case: chain reads from stdin
   if (command === 'chain' && commandArgs.length === 0) {
     const stdin = await Bun.stdin.text();
     commandArgs.push(stdin.trim());

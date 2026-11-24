@@ -1,8 +1,3 @@
-/**
- * Tiny Bun.serve for test fixtures
- * Serves HTML files from test/fixtures/ on a random available port
- */
-
 import * as path from 'path';
 import * as fs from 'fs';
 
@@ -15,7 +10,6 @@ export function startTestServer(port: number = 0): { server: ReturnType<typeof B
     fetch(req) {
       const url = new URL(req.url);
 
-      // Echo endpoint — returns request headers as JSON
       if (url.pathname === '/echo') {
         const headers: Record<string, string> = {};
         req.headers.forEach((value, key) => { headers[key] = value; });
@@ -26,7 +20,6 @@ export function startTestServer(port: number = 0): { server: ReturnType<typeof B
 
       let filePath = url.pathname === '/' ? '/basic.html' : url.pathname;
 
-      // Remove leading slash
       filePath = filePath.replace(/^\//, '');
       const fullPath = path.join(FIXTURES_DIR, filePath);
 
@@ -48,7 +41,6 @@ export function startTestServer(port: number = 0): { server: ReturnType<typeof B
   return { server, url };
 }
 
-// If run directly, start and print URL
 if (import.meta.main) {
   const { server, url } = startTestServer(9450);
   console.log(`Test server running at ${url}`);

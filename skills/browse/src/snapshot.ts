@@ -1,28 +1,8 @@
-/**
- * Snapshot command — accessibility tree with ref-based element selection
- *
- * Architecture (Locator map — no DOM mutation):
- *   1. page.locator(scope).ariaSnapshot() → YAML-like accessibility tree
- *   2. Parse tree, assign refs @e1, @e2, ...
- *   3. Build Playwright Locator for each ref (getByRole + nth)
- *   4. Store Map<string, Locator> on BrowserManager
- *   5. Return compact text output with refs prepended
- *
- * Extended features:
- *   --diff / -D:       Compare against last snapshot, return unified diff
- *   --annotate / -a:   Screenshot with overlay boxes at each @ref
- *   --output / -o:     Output path for annotated screenshot
- *   -C / --cursor-interactive: Scan for cursor:pointer/onclick/tabindex elements
- *
- * Later: "click @e3" → look up Locator → locator.click()
- */
-
 import type { Page, Locator } from 'playwright';
 import type { BrowserManager, RefEntry } from './browser-manager';
 import * as Diff from 'diff';
 import { TEMP_DIR, isPathWithin } from './platform';
 
-// Roles considered "interactive" for the -i flag
 const INTERACTIVE_ROLES = new Set([
   'button', 'link', 'textbox', 'checkbox', 'radio', 'combobox',
   'listbox', 'menuitem', 'menuitemcheckbox', 'menuitemradio',
@@ -31,14 +11,14 @@ const INTERACTIVE_ROLES = new Set([
 ]);
 
 interface SnapshotOptions {
-  interactive?: boolean;       // -i: only interactive elements
-  compact?: boolean;           // -c: remove empty structural elements
-  depth?: number;              // -d N: limit tree depth
-  selector?: string;           // -s SEL: scope to CSS selector
-  diff?: boolean;              // -D / --diff: diff against last snapshot
-  annotate?: boolean;          // -a / --annotate: annotated screenshot
-  outputPath?: string;         // -o / --output: path for annotated screenshot
-  cursorInteractive?: boolean; // -C / --cursor-interactive: scan cursor:pointer etc.
+  interactive?: boolean;
+  compact?: boolean;
+  depth?: number;
+  selector?: string;
+  diff?: boolean;
+  annotate?: boolean;
+  outputPath?: string;
+  cursorInteractive?: boolean;
 }
 
 /**
@@ -70,8 +50,8 @@ interface ParsedNode {
   indent: number;
   role: string;
   name: string | null;
-  props: string;      // e.g., "[level=1]"
-  children: string;   // inline text content after ":"
+  props: string;
+  children: string;
   rawLine: string;
 }
 
@@ -99,22 +79,9 @@ export function parseSnapshotArgs(args: string[]): SnapshotOptions {
   return opts;
 }
 
-/**
- * Parse one line of ariaSnapshot output.
- *
- * Format examples:
- *   - heading "Test" [level=1]
- *   - link "Link A":
- *     - /url: /a
- *   - textbox "Name"
- *   - paragraph: Some text
- *   - combobox "Role":
- */
 function parseLine(line: string): ParsedNode | null {
-  // Match: (indent)(- )(role)( "name")?( [props])?(: inline)?
   const match = line.match(/^(\s*)-\s+(\w+)(?:\s+"([^"]*)")?(?:\s+(\[.*?\]))?\s*(?::\s*(.*))?$/);
   if (!match) {
-    // Skip metadata lines like "- /url: /a"
     return null;
   }
   return {
@@ -137,7 +104,6 @@ export async function handleSnapshot(
   const opts = parseSnapshotArgs(args);
   const page = bm.getPage();
 
-  // Get accessibility tree via ariaSnapshot
   let rootLocator: Locator;
   if (opts.selector) {
     rootLocator = page.locator(opts.selector);
@@ -153,17 +119,14 @@ export async function handleSnapshot(
     return '(no accessible elements found)';
   }
 
-  // Parse the ariaSnapshot output
   const lines = ariaText.split('\n');
   const refMap = new Map<string, RefEntry>();
   const output: string[] = [];
   let refCounter = 1;
 
-  // Track role+name occurrences for nth() disambiguation
   const roleNameCounts = new Map<string, number>();
   const roleNameSeen = new Map<string, number>();
 
-  // First pass: count role+name pairs for disambiguation
   for (const line of lines) {
     const node = parseLine(line);
     if (!node) continue;
@@ -171,7 +134,6 @@ export async function handleSnapshot(
     roleNameCounts.set(key, (roleNameCounts.get(key) || 0) + 1);
   }
 
-  // Second pass: assign refs and build locators
   for (const line of lines) {
     const node = parseLine(line);
     if (!node) continue;
@@ -179,25 +141,19 @@ export async function handleSnapshot(
     const depth = Math.floor(node.indent / 2);
     const isInteractive = INTERACTIVE_ROLES.has(node.role);
 
-    // Depth filter
     if (opts.depth !== undefined && depth > opts.depth) continue;
 
-    // Interactive filter: skip non-interactive but still count for locator indices
     if (opts.interactive && !isInteractive) {
-      // Still track for nth() counts
       const key = `${node.role}:${node.name || ''}`;
       roleNameSeen.set(key, (roleNameSeen.get(key) || 0) + 1);
       continue;
     }
 
-    // Compact filter: skip elements with no name and no inline content that aren't interactive
     if (opts.compact && !isInteractive && !node.name && !node.children) continue;
 
-    // Assign ref
     const ref = `e${refCounter++}`;
     const indent = '  '.repeat(depth);
 
-    // Build Playwright locator
     const key = `${node.role}:${node.name || ''}`;
     const seenIndex = roleNameSeen.get(key) || 0;
     roleNameSeen.set(key, seenIndex + 1);
@@ -214,14 +170,12 @@ export async function handleSnapshot(
       });
     }
 
-    // Disambiguate with nth() if multiple elements share role+name
     if (totalCount > 1) {
       locator = locator.nth(seenIndex);
     }
 
     refMap.set(ref, { locator, role: node.role, name: node.name || '' });
 
-    // Format output line
     let outputLine = `${indent}@${ref} [${node.role}]`;
     if (node.name) outputLine += ` "${node.name}"`;
     if (node.props) outputLine += ` ${node.props}`;
@@ -230,7 +184,6 @@ export async function handleSnapshot(
     output.push(outputLine);
   }
 
-  // ─── Cursor-interactive scan (-C) ─────────────────────────
   if (opts.cursorInteractive) {
     try {
       const cursorElements = await page.evaluate(() => {
@@ -242,9 +195,7 @@ export async function handleSnapshot(
         const allElements = document.querySelectorAll('*');
 
         for (const el of allElements) {
-          // Skip standard interactive elements (already in ARIA tree)
           if (STANDARD_INTERACTIVE.has(el.tagName)) continue;
-          // Skip hidden elements
           if (!(el as HTMLElement).offsetParent && el.tagName !== 'BODY') continue;
 
           const style = getComputedStyle(el);
@@ -254,10 +205,8 @@ export async function handleSnapshot(
           const hasRole = el.hasAttribute('role');
 
           if (!hasCursorPointer && !hasOnclick && !hasTabindex) continue;
-          // Skip if it has an ARIA role (likely already captured)
           if (hasRole) continue;
 
-          // Build deterministic nth-child CSS path
           const parts: string[] = [];
           let current: Element | null = el;
           while (current && current !== document.documentElement) {
@@ -298,7 +247,6 @@ export async function handleSnapshot(
     }
   }
 
-  // Store ref map on BrowserManager
   bm.setRefMap(refMap);
 
   if (output.length === 0) {
@@ -307,17 +255,14 @@ export async function handleSnapshot(
 
   const snapshotText = output.join('\n');
 
-  // ─── Annotated screenshot (-a) ────────────────────────────
   if (opts.annotate) {
     const screenshotPath = opts.outputPath || `${TEMP_DIR}/browse-annotated.png`;
-    // Validate output path (consistent with screenshot/pdf/responsive)
     const resolvedPath = require('path').resolve(screenshotPath);
     const safeDirs = [TEMP_DIR, process.cwd()];
     if (!safeDirs.some((dir: string) => isPathWithin(resolvedPath, dir))) {
       throw new Error(`Path must be within: ${safeDirs.join(', ')}`);
     }
     try {
-      // Inject overlay divs at each ref's bounding box
       const boxes: Array<{ ref: string; box: { x: number; y: number; width: number; height: number } }> = [];
       for (const [ref, entry] of refMap) {
         try {
@@ -351,7 +296,6 @@ export async function handleSnapshot(
 
       await page.screenshot({ path: screenshotPath, fullPage: true });
 
-      // Always remove overlays
       await page.evaluate(() => {
         document.querySelectorAll('.__browse_annotation__').forEach(el => el.remove());
       });
@@ -359,7 +303,6 @@ export async function handleSnapshot(
       output.push('');
       output.push(`[annotated screenshot: ${screenshotPath}]`);
     } catch {
-      // Remove overlays even on screenshot failure
       try {
         await page.evaluate(() => {
           document.querySelectorAll('.__browse_annotation__').forEach(el => el.remove());
@@ -368,7 +311,6 @@ export async function handleSnapshot(
     }
   }
 
-  // ─── Diff mode (-D) ───────────────────────────────────────
   if (opts.diff) {
     const lastSnapshot = bm.getLastSnapshot();
     if (!lastSnapshot) {
@@ -391,7 +333,6 @@ export async function handleSnapshot(
     return diffOutput.join('\n');
   }
 
-  // Store for future diffs
   bm.setLastSnapshot(snapshotText);
 
   return output.join('\n');

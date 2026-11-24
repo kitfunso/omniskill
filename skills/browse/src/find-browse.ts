@@ -1,15 +1,6 @@
-/**
- * find-browse — locate the gstack browse binary.
- *
- * Compiled to browse/dist/find-browse (standalone binary, no bun runtime needed).
- * Outputs the absolute path to the browse binary on stdout, or exits 1 if not found.
- */
-
 import { existsSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
-
-// ─── Binary Discovery ───────────────────────────────────────────
 
 function getGitRoot(): string | null {
   try {
@@ -29,7 +20,6 @@ export function locateBinary(): string | null {
   const home = homedir();
   const markers = ['.codex', '.agents', '.claude'];
 
-  // Workspace-local takes priority (for development)
   if (root) {
     for (const m of markers) {
       const local = join(root, m, 'skills', 'gstack', 'browse', 'dist', 'browse');
@@ -45,8 +35,6 @@ export function locateBinary(): string | null {
 
   return null;
 }
-
-// ─── Main ───────────────────────────────────────────────────────
 
 function main() {
   const bin = locateBinary();

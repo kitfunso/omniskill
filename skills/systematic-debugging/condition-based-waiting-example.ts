@@ -1,7 +1,3 @@
-// Complete implementation of condition-based waiting utilities
-// From: Lace test infrastructure improvements (2025-10-03)
-// Context: Fixed 15 flaky tests by replacing arbitrary timeouts
-
 import type { ThreadManager } from '~/threads/thread-manager';
 import type { LaceEvent, LaceEventType } from '~/threads/types';
 
@@ -35,7 +31,7 @@ export function waitForEvent(
       } else if (Date.now() - startTime > timeoutMs) {
         reject(new Error(`Timeout waiting for ${eventType} event after ${timeoutMs}ms`));
       } else {
-        setTimeout(check, 10); // Poll every 10ms for efficiency
+        setTimeout(check, 10);
       }
     };
 

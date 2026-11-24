@@ -1,48 +1,12 @@
-/**
- * Chromium browser cookie import — read and decrypt cookies from real browsers
- *
- * Supports macOS Chromium-based browsers: Comet, Chrome, Arc, Brave, Edge.
- * Pure logic module — no Playwright dependency, no HTTP concerns.
- *
- * Decryption pipeline (Chromium macOS "v10" format):
- *
- *   ┌──────────────────────────────────────────────────────────────────┐
- *   │ 1. Keychain: `security find-generic-password -s "<svc>" -w`     │
- *   │    → base64 password string                                     │
- *   │                                                                  │
- *   │ 2. Key derivation:                                               │
- *   │    PBKDF2(password, salt="saltysalt", iter=1003, len=16, sha1)  │
- *   │    → 16-byte AES key                                            │
- *   │                                                                  │
- *   │ 3. For each cookie with encrypted_value starting with "v10":    │
- *   │    - Ciphertext = encrypted_value[3:]                           │
- *   │    - IV = 16 bytes of 0x20 (space character)                    │
- *   │    - Plaintext = AES-128-CBC-decrypt(key, iv, ciphertext)       │
- *   │    - Remove PKCS7 padding                                       │
- *   │    - Skip first 32 bytes (HMAC-SHA256 authentication tag)       │
- *   │    - Remaining bytes = cookie value (UTF-8)                     │
- *   │                                                                  │
- *   │ 4. If encrypted_value is empty but `value` field is set,        │
- *   │    use value directly (unencrypted cookie)                      │
- *   │                                                                  │
- *   │ 5. Chromium epoch: microseconds since 1601-01-01                │
- *   │    Unix seconds = (epoch - 11644473600000000) / 1000000         │
- *   │                                                                  │
- *   │ 6. sameSite: 0→"None", 1→"Lax", 2→"Strict", else→"Lax"        │
- *   └──────────────────────────────────────────────────────────────────┘
- */
-
 import { Database } from 'bun:sqlite';
 import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 
-// ─── Types ──────────────────────────────────────────────────────
-
 export interface BrowserInfo {
   name: string;
-  dataDir: string;        // relative to ~/Library/Application Support/
+  dataDir: string;
   keychainService: string;
   aliases: string[];
 }
@@ -81,9 +45,6 @@ export class CookieImportError extends Error {
   }
 }
 
-// ─── Browser Registry ───────────────────────────────────────────
-// Hardcoded — NEVER interpolate user input into shell commands.
-
 const BROWSER_REGISTRY: BrowserInfo[] = [
   { name: 'Comet',  dataDir: 'Comet/',                       keychainService: 'Comet Safe Storage',          aliases: ['comet', 'perplexity'] },
   { name: 'Chrome', dataDir: 'Google/Chrome/',                keychainService: 'Chrome Safe Storage',         aliases: ['chrome', 'google-chrome'] },
@@ -92,13 +53,7 @@ const BROWSER_REGISTRY: BrowserInfo[] = [
   { name: 'Edge',   dataDir: 'Microsoft Edge/',               keychainService: 'Microsoft Edge Safe Storage', aliases: ['edge'] },
 ];
 
-// ─── Key Cache ──────────────────────────────────────────────────
-// Cache derived AES keys per browser. First import per browser does
-// Keychain + PBKDF2. Subsequent imports reuse the cached key.
-
 const keyCache = new Map<string, Buffer>();
-
-// ─── Public API ─────────────────────────────────────────────────
 
 /**
  * Find which browsers are installed (have a cookie DB on disk).
@@ -150,7 +105,6 @@ export async function importCookies(
 
   try {
     const now = chromiumNow();
-    // Parameterized query — no SQL injection
     const placeholders = domains.map(() => '?').join(',');
     const rows = db.query(
       `SELECT host_key, name, value, encrypted_value, path, expires_utc,
@@ -181,8 +135,6 @@ export async function importCookies(
     db.close();
   }
 }
-
-// ─── Internal: Browser Resolution ───────────────────────────────
 
 function resolveBrowser(nameOrAlias: string): BrowserInfo {
   const needle = nameOrAlias.toLowerCase().trim();
@@ -221,8 +173,6 @@ function getCookieDbPath(browser: BrowserInfo, profile: string): string {
   return dbPath;
 }
 
-// ─── Internal: SQLite Access ────────────────────────────────────
-
 function openDb(dbPath: string, browserName: string): Database {
   try {
     return new Database(dbPath, { readonly: true });
@@ -244,14 +194,12 @@ function openDbFromCopy(dbPath: string, browserName: string): Database {
   const tmpPath = `/tmp/browse-cookies-${browserName.toLowerCase()}-${crypto.randomUUID()}.db`;
   try {
     fs.copyFileSync(dbPath, tmpPath);
-    // Also copy WAL and SHM if they exist (for consistent reads)
     const walPath = dbPath + '-wal';
     const shmPath = dbPath + '-shm';
     if (fs.existsSync(walPath)) fs.copyFileSync(walPath, tmpPath + '-wal');
     if (fs.existsSync(shmPath)) fs.copyFileSync(shmPath, tmpPath + '-shm');
 
     const db = new Database(tmpPath, { readonly: true });
-    // Schedule cleanup after the DB is closed
     const origClose = db.close.bind(db);
     db.close = () => {
       origClose();
@@ -261,7 +209,6 @@ function openDbFromCopy(dbPath: string, browserName: string): Database {
     };
     return db;
   } catch {
-    // Clean up on failure
     try { fs.unlinkSync(tmpPath); } catch {}
     throw new CookieImportError(
       `Cookie database is locked (${browserName} may be running). Try closing ${browserName} first.`,
@@ -270,8 +217,6 @@ function openDbFromCopy(dbPath: string, browserName: string): Database {
     );
   }
 }
-
-// ─── Internal: Keychain Access (async, 10s timeout) ─────────────
 
 async function getDerivedKey(browser: BrowserInfo): Promise<Buffer> {
   const cached = keyCache.get(browser.keychainService);
@@ -284,8 +229,6 @@ async function getDerivedKey(browser: BrowserInfo): Promise<Buffer> {
 }
 
 async function getKeychainPassword(service: string): Promise<string> {
-  // Use async Bun.spawn with timeout to avoid blocking the event loop.
-  // macOS may show an Allow/Deny dialog that blocks until the user responds.
   const proc = Bun.spawn(
     ['security', 'find-generic-password', '-s', service, '-w'],
     { stdout: 'pipe', stderr: 'pipe' },
@@ -308,7 +251,6 @@ async function getKeychainPassword(service: string): Promise<string> {
     const stderr = await new Response(proc.stderr).text();
 
     if (exitCode !== 0) {
-      // Distinguish denied vs not found vs other
       const errText = stderr.trim().toLowerCase();
       if (errText.includes('user canceled') || errText.includes('denied') || errText.includes('interaction not allowed')) {
         throw new CookieImportError(
@@ -341,8 +283,6 @@ async function getKeychainPassword(service: string): Promise<string> {
   }
 }
 
-// ─── Internal: Cookie Decryption ────────────────────────────────
-
 interface RawCookie {
   host_key: string;
   name: string;
@@ -357,7 +297,6 @@ interface RawCookie {
 }
 
 function decryptCookieValue(row: RawCookie, key: Buffer): string {
-  // Prefer unencrypted value if present
   if (row.value && row.value.length > 0) return row.value;
 
   const ev = Buffer.from(row.encrypted_value);
@@ -369,11 +308,10 @@ function decryptCookieValue(row: RawCookie, key: Buffer): string {
   }
 
   const ciphertext = ev.slice(3);
-  const iv = Buffer.alloc(16, 0x20); // 16 space characters
+  const iv = Buffer.alloc(16, 0x20);
   const decipher = crypto.createDecipheriv('aes-128-cbc', key, iv);
   const plaintext = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
 
-  // First 32 bytes are HMAC-SHA256 authentication tag; actual value follows
   if (plaintext.length <= 32) return '';
   return plaintext.slice(32).toString('utf-8');
 }
@@ -391,17 +329,14 @@ function toPlaywrightCookie(row: RawCookie, value: string): PlaywrightCookie {
   };
 }
 
-// ─── Internal: Chromium Epoch Conversion ────────────────────────
-
 const CHROMIUM_EPOCH_OFFSET = 11644473600000000n;
 
 function chromiumNow(): bigint {
-  // Current time in Chromium epoch (microseconds since 1601-01-01)
   return BigInt(Date.now()) * 1000n + CHROMIUM_EPOCH_OFFSET;
 }
 
 function chromiumEpochToUnix(epoch: number | bigint, hasExpires: number): number {
-  if (hasExpires === 0 || epoch === 0 || epoch === 0n) return -1; // session cookie
+  if (hasExpires === 0 || epoch === 0 || epoch === 0n) return -1;
   const epochBig = BigInt(epoch);
   const unixMicro = epochBig - CHROMIUM_EPOCH_OFFSET;
   return Number(unixMicro / 1000000n);

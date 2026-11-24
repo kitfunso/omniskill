@@ -1,10 +1,3 @@
-/**
- * Cross-platform constants for gstack browse.
- *
- * On macOS/Linux: TEMP_DIR = '/tmp', path.sep = '/'  — identical to hardcoded values.
- * On Windows: TEMP_DIR = os.tmpdir(), path.sep = '\\' — correct Windows behavior.
- */
-
 import * as os from 'os';
 import * as path from 'path';
 

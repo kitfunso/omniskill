@@ -1,11 +1,3 @@
-/**
- * Tests for bin/gstack-update-check bash script.
- *
- * Uses Bun.spawnSync to invoke the script with temp dirs and
- * GSTACK_DIR / GSTACK_STATE_DIR / GSTACK_REMOTE_URL env overrides
- * for full isolation.
- */
-
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
 import { mkdtempSync, writeFileSync, rmSync, existsSync, readFileSync, mkdirSync, symlinkSync, utimesSync } from 'fs';
 import { join } from 'path';
@@ -38,7 +30,6 @@ function run(extraEnv: Record<string, string> = {}, args: string[] = []) {
 beforeEach(() => {
   gstackDir = mkdtempSync(join(tmpdir(), 'gstack-upd-test-'));
   stateDir = mkdtempSync(join(tmpdir(), 'gstack-state-test-'));
-  // Link real gstack-config so update_check config check works
   const binDir = join(gstackDir, 'bin');
   mkdirSync(binDir);
   symlinkSync(join(import.meta.dir, '..', '..', 'bin', 'gstack-config'), join(binDir, 'gstack-config'));
@@ -62,14 +53,12 @@ function nowEpoch(): number {
 }
 
 describe('gstack-update-check', () => {
-  // ─── Path A: No VERSION file ────────────────────────────────
   test('exits 0 with no output when VERSION file is missing', () => {
     const { exitCode, stdout } = run();
     expect(exitCode).toBe(0);
     expect(stdout).toBe('');
   });
 
-  // ─── Path B: Empty VERSION file ─────────────────────────────
   test('exits 0 with no output when VERSION file is empty', () => {
     writeFileSync(join(gstackDir, 'VERSION'), '');
     const { exitCode, stdout } = run();
@@ -77,7 +66,6 @@ describe('gstack-update-check', () => {
     expect(stdout).toBe('');
   });
 
-  // ─── Path C: Just-upgraded marker ───────────────────────────
   test('outputs JUST_UPGRADED and deletes marker', () => {
     writeFileSync(join(gstackDir, 'VERSION'), '0.4.0\n');
     writeFileSync(join(stateDir, 'just-upgraded-from'), '0.3.3\n');
@@ -85,14 +73,11 @@ describe('gstack-update-check', () => {
     const { exitCode, stdout } = run();
     expect(exitCode).toBe(0);
     expect(stdout).toBe('JUST_UPGRADED 0.3.3 0.4.0');
-    // Marker should be deleted
     expect(existsSync(join(stateDir, 'just-upgraded-from'))).toBe(false);
-    // Cache should be written
     const cache = readFileSync(join(stateDir, 'last-update-check'), 'utf-8');
     expect(cache).toContain('UP_TO_DATE');
   });
 
-  // ─── Path D1: Fresh cache, UP_TO_DATE ───────────────────────
   test('exits silently when cache says UP_TO_DATE and is fresh', () => {
     writeFileSync(join(gstackDir, 'VERSION'), '0.3.3\n');
     writeFileSync(join(stateDir, 'last-update-check'), 'UP_TO_DATE 0.3.3');
@@ -102,12 +87,9 @@ describe('gstack-update-check', () => {
     expect(stdout).toBe('');
   });
 
-  // ─── Path D1b: Fresh UP_TO_DATE cache, but local version changed ──
   test('re-checks when UP_TO_DATE cache version does not match local', () => {
     writeFileSync(join(gstackDir, 'VERSION'), '0.4.0\n');
-    // Cache says UP_TO_DATE for 0.3.3, but local is now 0.4.0
     writeFileSync(join(stateDir, 'last-update-check'), 'UP_TO_DATE 0.3.3');
-    // Remote says 0.5.0 — should detect upgrade
     writeFileSync(join(gstackDir, 'REMOTE_VERSION'), '0.5.0\n');
 
     const { exitCode, stdout } = run();
@@ -115,7 +97,6 @@ describe('gstack-update-check', () => {
     expect(stdout).toBe('UPGRADE_AVAILABLE 0.4.0 0.5.0');
   });
 
-  // ─── Path D2: Fresh cache, UPGRADE_AVAILABLE ────────────────
   test('echoes cached UPGRADE_AVAILABLE when cache is fresh', () => {
     writeFileSync(join(gstackDir, 'VERSION'), '0.3.3\n');
     writeFileSync(join(stateDir, 'last-update-check'), 'UPGRADE_AVAILABLE 0.3.3 0.4.0');
@@ -125,22 +106,18 @@ describe('gstack-update-check', () => {
     expect(stdout).toBe('UPGRADE_AVAILABLE 0.3.3 0.4.0');
   });
 
-  // ─── Path D3: Fresh cache, but local version changed ────────
   test('re-checks when local version does not match cached old version', () => {
     writeFileSync(join(gstackDir, 'VERSION'), '0.4.0\n');
-    // Cache says 0.3.3 → 0.4.0 but we're already on 0.4.0
     writeFileSync(join(stateDir, 'last-update-check'), 'UPGRADE_AVAILABLE 0.3.3 0.4.0');
-    // Remote also says 0.4.0 — should be up to date
     writeFileSync(join(gstackDir, 'REMOTE_VERSION'), '0.4.0\n');
 
     const { exitCode, stdout } = run();
     expect(exitCode).toBe(0);
-    expect(stdout).toBe(''); // Up to date after re-check
+    expect(stdout).toBe('');
     const cache = readFileSync(join(stateDir, 'last-update-check'), 'utf-8');
     expect(cache).toContain('UP_TO_DATE');
   });
 
-  // ─── Path E: Versions match (remote fetch) ─────────────────
   test('writes UP_TO_DATE cache when versions match', () => {
     writeFileSync(join(gstackDir, 'VERSION'), '0.3.3\n');
     writeFileSync(join(gstackDir, 'REMOTE_VERSION'), '0.3.3\n');
@@ -152,7 +129,6 @@ describe('gstack-update-check', () => {
     expect(cache).toContain('UP_TO_DATE');
   });
 
-  // ─── Path F: Versions differ (remote fetch) ─────────────────
   test('outputs UPGRADE_AVAILABLE when versions differ', () => {
     writeFileSync(join(gstackDir, 'VERSION'), '0.3.3\n');
     writeFileSync(join(gstackDir, 'REMOTE_VERSION'), '0.4.0\n');
@@ -164,7 +140,6 @@ describe('gstack-update-check', () => {
     expect(cache).toContain('UPGRADE_AVAILABLE 0.3.3 0.4.0');
   });
 
-  // ─── Path G: Invalid remote response ────────────────────────
   test('treats invalid remote response as up to date', () => {
     writeFileSync(join(gstackDir, 'VERSION'), '0.3.3\n');
     writeFileSync(join(gstackDir, 'REMOTE_VERSION'), '<html>404 Not Found</html>\n');
@@ -176,7 +151,6 @@ describe('gstack-update-check', () => {
     expect(cache).toContain('UP_TO_DATE');
   });
 
-  // ─── Path H: Curl fails (bad URL) ──────────────────────────
   test('exits silently when remote URL is unreachable', () => {
     writeFileSync(join(gstackDir, 'VERSION'), '0.3.3\n');
 
@@ -189,22 +163,18 @@ describe('gstack-update-check', () => {
     expect(cache).toContain('UP_TO_DATE');
   });
 
-  // ─── Path I: Corrupt cache file ─────────────────────────────
   test('falls through to remote fetch when cache is corrupt', () => {
     writeFileSync(join(gstackDir, 'VERSION'), '0.3.3\n');
     writeFileSync(join(stateDir, 'last-update-check'), 'garbage data here');
-    // Remote says same version — should end up UP_TO_DATE
     writeFileSync(join(gstackDir, 'REMOTE_VERSION'), '0.3.3\n');
 
     const { exitCode, stdout } = run();
     expect(exitCode).toBe(0);
     expect(stdout).toBe('');
-    // Cache should be overwritten with valid content
     const cache = readFileSync(join(stateDir, 'last-update-check'), 'utf-8');
     expect(cache).toContain('UP_TO_DATE');
   });
 
-  // ─── State dir creation ─────────────────────────────────────
   test('creates state dir if it does not exist', () => {
     const newStateDir = join(stateDir, 'nested', 'dir');
     writeFileSync(join(gstackDir, 'VERSION'), '0.3.3\n');
@@ -215,59 +185,45 @@ describe('gstack-update-check', () => {
     expect(existsSync(join(newStateDir, 'last-update-check'))).toBe(true);
   });
 
-  // ─── E2E regression: always exit 0 ───────────────────────────
-  // Agents call this on every skill invocation. Exit code 1 breaks
-  // the preamble and confuses the agent. This test guards against
-  // regressions like the "exits 1 when up to date" bug.
   test('exits 0 with real project VERSION and unreachable remote', () => {
-    // Simulate agent context: real VERSION file, network unavailable
     const projectRoot = join(import.meta.dir, '..', '..');
     const versionFile = join(projectRoot, 'VERSION');
-    if (!existsSync(versionFile)) return; // skip if no VERSION
+    if (!existsSync(versionFile)) return;
     const version = readFileSync(versionFile, 'utf-8').trim();
 
-    // Copy VERSION into test dir
     writeFileSync(join(gstackDir, 'VERSION'), version + '\n');
 
-    // Remote is unreachable (simulates offline / CI / sandboxed agent)
     const { exitCode, stdout } = run({
       GSTACK_REMOTE_URL: 'file:///nonexistent/path/VERSION',
     });
     expect(exitCode).toBe(0);
-    // Should write UP_TO_DATE cache (not crash)
     const cache = readFileSync(join(stateDir, 'last-update-check'), 'utf-8');
     expect(cache).toContain('UP_TO_DATE');
   });
 
   test('exits 0 when up to date (not exit 1)', () => {
-    // Regression test: script previously exited 1 when versions matched.
-    // This broke every skill preamble that called it without || true.
     writeFileSync(join(gstackDir, 'VERSION'), '0.3.3\n');
     writeFileSync(join(gstackDir, 'REMOTE_VERSION'), '0.3.3\n');
 
-    // First call: fetches remote, writes cache
     const first = run();
     expect(first.exitCode).toBe(0);
     expect(first.stdout).toBe('');
 
-    // Second call: reads fresh cache
     const second = run();
     expect(second.exitCode).toBe(0);
     expect(second.stdout).toBe('');
 
-    // Third call with upgrade available: still exit 0
     writeFileSync(join(gstackDir, 'REMOTE_VERSION'), '0.4.0\n');
-    rmSync(join(stateDir, 'last-update-check')); // force re-fetch
+    rmSync(join(stateDir, 'last-update-check'));
     const third = run();
     expect(third.exitCode).toBe(0);
     expect(third.stdout).toBe('UPGRADE_AVAILABLE 0.3.3 0.4.0');
   });
 
-  // ─── Snooze tests ───────────────────────────────────────────
   test('snoozed level 1 within 24h → silent (cached path)', () => {
     writeFileSync(join(gstackDir, 'VERSION'), '0.3.3\n');
     writeFileSync(join(stateDir, 'last-update-check'), 'UPGRADE_AVAILABLE 0.3.3 0.4.0');
-    writeSnooze('0.4.0', 1, nowEpoch() - 3600); // 1h ago (within 24h)
+    writeSnooze('0.4.0', 1, nowEpoch() - 3600);
 
     const { exitCode, stdout } = run();
     expect(exitCode).toBe(0);
@@ -277,7 +233,7 @@ describe('gstack-update-check', () => {
   test('snoozed level 1 expired (25h ago) → outputs UPGRADE_AVAILABLE', () => {
     writeFileSync(join(gstackDir, 'VERSION'), '0.3.3\n');
     writeFileSync(join(stateDir, 'last-update-check'), 'UPGRADE_AVAILABLE 0.3.3 0.4.0');
-    writeSnooze('0.4.0', 1, nowEpoch() - 90000); // 25h ago
+    writeSnooze('0.4.0', 1, nowEpoch() - 90000);
 
     const { exitCode, stdout } = run();
     expect(exitCode).toBe(0);
@@ -287,7 +243,7 @@ describe('gstack-update-check', () => {
   test('snoozed level 2 within 48h → silent', () => {
     writeFileSync(join(gstackDir, 'VERSION'), '0.3.3\n');
     writeFileSync(join(stateDir, 'last-update-check'), 'UPGRADE_AVAILABLE 0.3.3 0.4.0');
-    writeSnooze('0.4.0', 2, nowEpoch() - 86400); // 24h ago (within 48h)
+    writeSnooze('0.4.0', 2, nowEpoch() - 86400);
 
     const { exitCode, stdout } = run();
     expect(exitCode).toBe(0);
@@ -297,7 +253,7 @@ describe('gstack-update-check', () => {
   test('snoozed level 2 expired (49h ago) → outputs', () => {
     writeFileSync(join(gstackDir, 'VERSION'), '0.3.3\n');
     writeFileSync(join(stateDir, 'last-update-check'), 'UPGRADE_AVAILABLE 0.3.3 0.4.0');
-    writeSnooze('0.4.0', 2, nowEpoch() - 176400); // 49h ago
+    writeSnooze('0.4.0', 2, nowEpoch() - 176400);
 
     const { exitCode, stdout } = run();
     expect(exitCode).toBe(0);
@@ -307,7 +263,7 @@ describe('gstack-update-check', () => {
   test('snoozed level 3 within 7d → silent', () => {
     writeFileSync(join(gstackDir, 'VERSION'), '0.3.3\n');
     writeFileSync(join(stateDir, 'last-update-check'), 'UPGRADE_AVAILABLE 0.3.3 0.4.0');
-    writeSnooze('0.4.0', 3, nowEpoch() - 518400); // 6d ago (within 7d)
+    writeSnooze('0.4.0', 3, nowEpoch() - 518400);
 
     const { exitCode, stdout } = run();
     expect(exitCode).toBe(0);
@@ -317,7 +273,7 @@ describe('gstack-update-check', () => {
   test('snoozed level 3 expired (8d ago) → outputs', () => {
     writeFileSync(join(gstackDir, 'VERSION'), '0.3.3\n');
     writeFileSync(join(stateDir, 'last-update-check'), 'UPGRADE_AVAILABLE 0.3.3 0.4.0');
-    writeSnooze('0.4.0', 3, nowEpoch() - 691200); // 8d ago
+    writeSnooze('0.4.0', 3, nowEpoch() - 691200);
 
     const { exitCode, stdout } = run();
     expect(exitCode).toBe(0);
@@ -327,8 +283,7 @@ describe('gstack-update-check', () => {
   test('snooze ignored when version differs (new version resets snooze)', () => {
     writeFileSync(join(gstackDir, 'VERSION'), '0.3.3\n');
     writeFileSync(join(stateDir, 'last-update-check'), 'UPGRADE_AVAILABLE 0.3.3 0.5.0');
-    // Snoozed for 0.4.0, but remote is now 0.5.0
-    writeSnooze('0.4.0', 3, nowEpoch() - 60); // very recent
+    writeSnooze('0.4.0', 3, nowEpoch() - 60);
 
     const { exitCode, stdout } = run();
     expect(exitCode).toBe(0);
@@ -368,13 +323,11 @@ describe('gstack-update-check', () => {
   test('snooze respected on remote fetch path (no cache)', () => {
     writeFileSync(join(gstackDir, 'VERSION'), '0.3.3\n');
     writeFileSync(join(gstackDir, 'REMOTE_VERSION'), '0.4.0\n');
-    // No cache file — goes to remote fetch path
-    writeSnooze('0.4.0', 1, nowEpoch() - 3600); // 1h ago
+    writeSnooze('0.4.0', 1, nowEpoch() - 3600);
 
     const { exitCode, stdout } = run();
     expect(exitCode).toBe(0);
     expect(stdout).toBe('');
-    // Cache should still be written
     const cache = readFileSync(join(stateDir, 'last-update-check'), 'utf-8');
     expect(cache).toContain('UPGRADE_AVAILABLE 0.3.3 0.4.0');
   });
@@ -390,7 +343,6 @@ describe('gstack-update-check', () => {
     expect(existsSync(join(stateDir, 'update-snoozed'))).toBe(false);
   });
 
-  // ─── Config tests ──────────────────────────────────────────
   test('update_check: false disables all checks', () => {
     writeFileSync(join(gstackDir, 'VERSION'), '0.3.3\n');
     writeFileSync(join(gstackDir, 'REMOTE_VERSION'), '0.4.0\n');
@@ -399,32 +351,26 @@ describe('gstack-update-check', () => {
     const { exitCode, stdout } = run();
     expect(exitCode).toBe(0);
     expect(stdout).toBe('');
-    // No cache should be written
     expect(existsSync(join(stateDir, 'last-update-check'))).toBe(false);
   });
 
   test('missing config.yaml does not crash', () => {
     writeFileSync(join(gstackDir, 'VERSION'), '0.3.3\n');
     writeFileSync(join(gstackDir, 'REMOTE_VERSION'), '0.4.0\n');
-    // No config file — should behave normally
 
     const { exitCode, stdout } = run();
     expect(exitCode).toBe(0);
     expect(stdout).toBe('UPGRADE_AVAILABLE 0.3.3 0.4.0');
   });
 
-  // ─── --force flag tests ──────────────────────────────────────
-
   test('--force busts fresh UP_TO_DATE cache', () => {
     writeFileSync(join(gstackDir, 'VERSION'), '0.3.3\n');
     writeFileSync(join(gstackDir, 'REMOTE_VERSION'), '0.4.0\n');
     writeFileSync(join(stateDir, 'last-update-check'), 'UP_TO_DATE 0.3.3');
 
-    // Without --force: cache hit, silent
     const cached = run();
     expect(cached.stdout).toBe('');
 
-    // With --force: cache busted, re-fetches, finds upgrade
     const forced = run({}, ['--force']);
     expect(forced.exitCode).toBe(0);
     expect(forced.stdout).toBe('UPGRADE_AVAILABLE 0.3.3 0.4.0');
@@ -435,11 +381,9 @@ describe('gstack-update-check', () => {
     writeFileSync(join(gstackDir, 'REMOTE_VERSION'), '0.3.3\n');
     writeFileSync(join(stateDir, 'last-update-check'), 'UPGRADE_AVAILABLE 0.3.3 0.4.0');
 
-    // Without --force: cache hit, outputs stale upgrade
     const cached = run();
     expect(cached.stdout).toBe('UPGRADE_AVAILABLE 0.3.3 0.4.0');
 
-    // With --force: cache busted, re-fetches, now up to date
     const forced = run({}, ['--force']);
     expect(forced.exitCode).toBe(0);
     expect(forced.stdout).toBe('');
@@ -447,19 +391,15 @@ describe('gstack-update-check', () => {
     expect(cache).toContain('UP_TO_DATE');
   });
 
-  // ─── Split TTL tests ─────────────────────────────────────────
-
   test('UP_TO_DATE cache expires after 60 min (not 720)', () => {
     writeFileSync(join(gstackDir, 'VERSION'), '0.3.3\n');
     writeFileSync(join(gstackDir, 'REMOTE_VERSION'), '0.4.0\n');
     writeFileSync(join(stateDir, 'last-update-check'), 'UP_TO_DATE 0.3.3');
 
-    // Set cache mtime to 90 minutes ago (past 60-min TTL)
     const ninetyMinAgo = new Date(Date.now() - 90 * 60 * 1000);
     const cachePath = join(stateDir, 'last-update-check');
     utimesSync(cachePath, ninetyMinAgo, ninetyMinAgo);
 
-    // Cache should be stale at 60-min TTL, re-fetches and finds upgrade
     const { exitCode, stdout } = run();
     expect(exitCode).toBe(0);
     expect(stdout).toBe('UPGRADE_AVAILABLE 0.3.3 0.4.0');
