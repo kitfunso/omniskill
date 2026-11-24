@@ -1,3 +1,10 @@
+/**
+ * Tests for handoff/resume commands — headless-to-headed browser switching.
+ *
+ * Unit tests cover saveState/restoreState, failure tracking, and edge cases.
+ * Integration tests cover the full handoff flow with real Playwright browsers.
+ */
+
 import { describe, test, expect, beforeAll, afterAll } from 'bun:test';
 import { startTestServer } from './test-server';
 import { BrowserManager, type BrowserState } from '../src/browser-manager';
@@ -20,6 +27,8 @@ afterAll(() => {
   try { testServer.server.stop(); } catch {}
   setTimeout(() => process.exit(0), 500);
 });
+
+// ─── Unit Tests: Failure Tracking (no browser needed) ────────────
 
 describe('failure tracking', () => {
   test('getFailureHint returns null when below threshold', () => {
@@ -64,6 +73,8 @@ describe('failure tracking', () => {
     expect(tracker.getIsHeaded()).toBe(false);
   });
 });
+
+// ─── Unit Tests: State Save/Restore (shared browser) ─────────────
 
 describe('saveState', () => {
   test('captures cookies and page URLs', async () => {
@@ -128,6 +139,8 @@ describe('restoreState', () => {
   }, 30000);
 });
 
+// ─── Unit Tests: Handoff Edge Cases ──────────────────────────────
+
 describe('handoff edge cases', () => {
   test('handoff when already headed returns no-op', async () => {
     (bm as any).isHeaded = true;
@@ -152,28 +165,37 @@ describe('handoff edge cases', () => {
   }, 15000);
 });
 
+// ─── Integration Tests: Full Handoff Flow ────────────────────────
+// Each handoff test creates its own BrowserManager since handoff swaps the browser.
+// These tests run sequentially (one browser at a time) to avoid resource issues.
+
 describe('handoff integration', () => {
   test('full handoff: cookies preserved, headed mode active, commands work', async () => {
     const hbm = new BrowserManager();
     await hbm.launch();
 
     try {
+      // Set up state
       await handleWriteCommand('goto', [baseUrl + '/basic.html'], hbm);
       await handleWriteCommand('cookie', ['handoff_test=preserved'], hbm);
 
+      // Handoff
       const result = await hbm.handoff('Testing handoff');
       expect(result).toContain('HANDOFF:');
       expect(result).toContain('Testing handoff');
       expect(result).toContain('resume');
       expect(hbm.getIsHeaded()).toBe(true);
 
+      // Verify cookies survived
       const { handleReadCommand } = await import('../src/read-commands');
       const cookiesResult = await handleReadCommand('cookies', [], hbm);
       expect(cookiesResult).toContain('handoff_test');
 
+      // Verify commands still work
       const text = await handleReadCommand('text', [], hbm);
       expect(text.length).toBeGreaterThan(0);
 
+      // Resume
       const resumeResult = await handleMetaCommand('resume', [], hbm, () => {});
       expect(resumeResult).toContain('RESUMED');
     } finally {

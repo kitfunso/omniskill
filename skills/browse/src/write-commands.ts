@@ -1,3 +1,10 @@
+/**
+ * Write commands — navigate and interact with pages (side effects)
+ *
+ * goto, back, forward, reload, click, fill, select, hover, type,
+ * press, scroll, wait, viewport, cookie, header, useragent
+ */
+
 import type { BrowserManager } from './browser-manager';
 import { findInstalledBrowsers, importCookies } from './cookie-import-browser';
 import { validateNavigationUrl } from './url-validation';
@@ -41,12 +48,13 @@ export async function handleWriteCommand(
       const selector = args[0];
       if (!selector) throw new Error('Usage: browse click <selector>');
 
+      // Auto-route: if ref points to a real <option> inside a <select>, use selectOption
       const role = bm.getRefRole(selector);
       if (role === 'option') {
         const resolved = await bm.resolveRef(selector);
         if ('locator' in resolved) {
           const optionInfo = await resolved.locator.evaluate(el => {
-            if (el.tagName !== 'OPTION') return null;
+            if (el.tagName !== 'OPTION') return null; // custom [role=option], not real <option>
             const option = el as HTMLOptionElement;
             const select = option.closest('select');
             if (!select) return null;
@@ -68,6 +76,7 @@ export async function handleWriteCommand(
           await page.click(resolved.selector, { timeout: 5000 });
         }
       } catch (err: any) {
+        // Enhanced error guidance: clicking <option> elements always fails (not visible / timeout)
         const isOption = 'locator' in resolved
           ? await resolved.locator.evaluate(el => el.tagName === 'OPTION').catch(() => false)
           : await page.evaluate(
@@ -81,6 +90,7 @@ export async function handleWriteCommand(
         }
         throw err;
       }
+      // Wait briefly for any navigation/DOM update
       await page.waitForLoadState('domcontentloaded').catch(() => {});
       return `Clicked ${selector} → now at ${page.url()}`;
     }
@@ -229,6 +239,7 @@ export async function handleWriteCommand(
       const [selector, ...filePaths] = args;
       if (!selector || filePaths.length === 0) throw new Error('Usage: browse upload <selector> <file1> [file2...]');
 
+      // Validate all files exist before upload
       for (const fp of filePaths) {
         if (!fs.existsSync(fp)) throw new Error(`File not found: ${fp}`);
       }
@@ -265,6 +276,7 @@ export async function handleWriteCommand(
     case 'cookie-import': {
       const filePath = args[0];
       if (!filePath) throw new Error('Usage: browse cookie-import <json-file>');
+      // Path validation — prevent reading arbitrary files
       if (path.isAbsolute(filePath)) {
         const safeDirs = [TEMP_DIR, process.cwd()];
         const resolved = path.resolve(filePath);
@@ -281,6 +293,7 @@ export async function handleWriteCommand(
       try { cookies = JSON.parse(raw); } catch { throw new Error(`Invalid JSON in ${filePath}`); }
       if (!Array.isArray(cookies)) throw new Error('Cookie file must contain a JSON array');
 
+      // Auto-fill domain from current page URL when missing (consistent with cookie command)
       const pageUrl = new URL(page.url());
       const defaultDomain = pageUrl.hostname;
 
@@ -295,10 +308,14 @@ export async function handleWriteCommand(
     }
 
     case 'cookie-import-browser': {
+      // Two modes:
+      // 1. Direct CLI import: cookie-import-browser <browser> --domain <domain>
+      // 2. Open picker UI: cookie-import-browser [browser]
       const browserArg = args[0];
       const domainIdx = args.indexOf('--domain');
 
       if (domainIdx !== -1 && domainIdx + 1 < args.length) {
+        // Direct import mode — no UI
         const domain = args[domainIdx + 1];
         const browser = browserArg || 'comet';
         const result = await importCookies(browser, [domain]);
@@ -310,6 +327,7 @@ export async function handleWriteCommand(
         return msg.join(' ');
       }
 
+      // Picker UI mode — open in user's browser
       const port = bm.serverPort;
       if (!port) throw new Error('Server port not available');
 

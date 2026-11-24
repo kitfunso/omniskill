@@ -1,3 +1,10 @@
+/**
+ * Tests for bin/gstack-config bash script.
+ *
+ * Uses Bun.spawnSync to invoke the script with temp dirs and
+ * GSTACK_STATE_DIR env override for full isolation.
+ */
+
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
 import { mkdtempSync, writeFileSync, rmSync, readFileSync, existsSync } from 'fs';
 import { join } from 'path';
@@ -33,6 +40,7 @@ afterEach(() => {
 });
 
 describe('gstack-config', () => {
+  // ─── get ──────────────────────────────────────────────────
   test('get on missing file returns empty, exit 0', () => {
     const { exitCode, stdout } = run(['get', 'auto_upgrade']);
     expect(exitCode).toBe(0);
@@ -60,6 +68,7 @@ describe('gstack-config', () => {
     expect(stdout).toBe('baz');
   });
 
+  // ─── set ──────────────────────────────────────────────────
   test('set creates file and writes key on missing file', () => {
     const { exitCode } = run(['set', 'auto_upgrade', 'true']);
     expect(exitCode).toBe(0);
@@ -92,6 +101,7 @@ describe('gstack-config', () => {
     expect(existsSync(join(nestedDir, 'config.yaml'))).toBe(true);
   });
 
+  // ─── list ─────────────────────────────────────────────────
   test('list shows all keys', () => {
     writeFileSync(join(stateDir, 'config.yaml'), 'auto_upgrade: true\nupdate_check: false\n');
     const { exitCode, stdout } = run(['list']);
@@ -106,6 +116,7 @@ describe('gstack-config', () => {
     expect(stdout).toBe('');
   });
 
+  // ─── usage ────────────────────────────────────────────────
   test('no args shows usage and exits 1', () => {
     const { exitCode, stdout } = run([]);
     expect(exitCode).toBe(1);

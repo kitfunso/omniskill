@@ -31,7 +31,6 @@ async function readCatalogSkill(directoryPath: string): Promise<CatalogSkill> {
       };
     }
   } catch {
-    // Fall back to SKILL.md parsing below.
   }
 
   const parsed = parseSkillFrontmatter(await readFile(skillFilePath, "utf8"));

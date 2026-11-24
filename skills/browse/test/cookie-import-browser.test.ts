@@ -1,3 +1,18 @@
+/**
+ * Unit tests for cookie-import-browser.ts
+ *
+ * Uses a fixture SQLite database with cookies encrypted using a known test key.
+ * Mocks Keychain access to return the test password.
+ *
+ * Test key derivation (matches real Chromium pipeline):
+ *   password = "test-keychain-password"
+ *   key = PBKDF2(password, "saltysalt", 1003, 16, sha1)
+ *
+ * Encryption: AES-128-CBC with IV = 16 × 0x20, prefix "v10"
+ * First 32 bytes of plaintext = HMAC-SHA256 tag (random for tests)
+ * Remaining bytes = actual cookie value
+ */
+
 import { describe, test, expect, beforeAll, afterAll, mock } from 'bun:test';
 import { Database } from 'bun:sqlite';
 import * as crypto from 'crypto';
@@ -5,32 +20,42 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 
+// ─── Test Constants ─────────────────────────────────────────────
+
 const TEST_PASSWORD = 'test-keychain-password';
 const TEST_KEY = crypto.pbkdf2Sync(TEST_PASSWORD, 'saltysalt', 1003, 16, 'sha1');
 const IV = Buffer.alloc(16, 0x20);
 const CHROMIUM_EPOCH_OFFSET = 11644473600000000n;
 
+// Fixture DB path
 const FIXTURE_DIR = path.join(import.meta.dir, 'fixtures');
 const FIXTURE_DB = path.join(FIXTURE_DIR, 'test-cookies.db');
 
+// ─── Encryption Helper ──────────────────────────────────────────
+
 function encryptCookieValue(value: string): Buffer {
+  // 32-byte HMAC tag (random for test) + actual value
   const hmacTag = crypto.randomBytes(32);
   const plaintext = Buffer.concat([hmacTag, Buffer.from(value, 'utf-8')]);
 
+  // PKCS7 pad to AES block size (16 bytes)
   const blockSize = 16;
   const padLen = blockSize - (plaintext.length % blockSize);
   const padded = Buffer.concat([plaintext, Buffer.alloc(padLen, padLen)]);
 
   const cipher = crypto.createCipheriv('aes-128-cbc', TEST_KEY, IV);
-  cipher.setAutoPadding(false);
+  cipher.setAutoPadding(false); // We padded manually
   const encrypted = Buffer.concat([cipher.update(padded), cipher.final()]);
 
+  // Prefix with "v10"
   return Buffer.concat([Buffer.from('v10'), encrypted]);
 }
 
 function chromiumEpoch(unixSeconds: number): bigint {
   return BigInt(unixSeconds) * 1000000n + CHROMIUM_EPOCH_OFFSET;
 }
+
+// ─── Create Fixture Database ────────────────────────────────────
 
 function createFixtureDb() {
   fs.mkdirSync(FIXTURE_DIR, { recursive: true });
@@ -57,27 +82,40 @@ function createFixtureDb() {
   const futureExpiry = Number(chromiumEpoch(Math.floor(Date.now() / 1000) + 86400 * 365));
   const pastExpiry = Number(chromiumEpoch(Math.floor(Date.now() / 1000) - 86400));
 
+  // Domain 1: .github.com — 3 encrypted cookies
   insert.run('.github.com', 'session_id', '', encryptCookieValue('abc123'), '/', futureExpiry, 1, 1, 1, 1);
   insert.run('.github.com', 'user_token', '', encryptCookieValue('token-xyz'), '/', futureExpiry, 1, 0, 1, 0);
   insert.run('.github.com', 'theme', '', encryptCookieValue('dark'), '/', futureExpiry, 0, 0, 1, 2);
 
+  // Domain 2: .google.com — 2 cookies
   insert.run('.google.com', 'NID', '', encryptCookieValue('google-nid-value'), '/', futureExpiry, 1, 1, 1, 0);
   insert.run('.google.com', 'SID', '', encryptCookieValue('google-sid-value'), '/', futureExpiry, 1, 1, 1, 1);
 
+  // Domain 3: .example.com — 1 unencrypted cookie (value field set, no encrypted_value)
   insert.run('.example.com', 'plain_cookie', 'hello-world', Buffer.alloc(0), '/', futureExpiry, 0, 0, 1, 1);
 
+  // Domain 4: .expired.com — 1 expired cookie (should be filtered out)
   insert.run('.expired.com', 'old', '', encryptCookieValue('expired-value'), '/', pastExpiry, 0, 0, 1, 1);
 
+  // Domain 5: .session.com — session cookie (has_expires=0)
   insert.run('.session.com', 'sess', '', encryptCookieValue('session-value'), '/', 0, 1, 1, 0, 1);
 
+  // Domain 6: .corrupt.com — cookie with garbage encrypted_value
   insert.run('.corrupt.com', 'bad', '', Buffer.from('v10' + 'not-valid-ciphertext-at-all'), '/', futureExpiry, 0, 0, 1, 1);
 
+  // Domain 7: .mixed.com — one good, one corrupt
   insert.run('.mixed.com', 'good', '', encryptCookieValue('mixed-good'), '/', futureExpiry, 0, 0, 1, 1);
   insert.run('.mixed.com', 'bad', '', Buffer.from('v10' + 'garbage-data-here!!!'), '/', futureExpiry, 0, 0, 1, 1);
 
   db.close();
 }
 
+// ─── Mock Setup ─────────────────────────────────────────────────
+// We need to mock:
+// 1. The Keychain access (getKeychainPassword) to return TEST_PASSWORD
+// 2. The cookie DB path resolution to use our fixture DB
+
+// We'll import the module after setting up the mocks
 let findInstalledBrowsers: any;
 let listDomains: any;
 let importCookies: any;
@@ -86,11 +124,14 @@ let CookieImportError: any;
 beforeAll(async () => {
   createFixtureDb();
 
+  // Mock Bun.spawn to return test password for keychain access
   const origSpawn = Bun.spawn;
   // @ts-ignore - monkey-patching for test
   Bun.spawn = function(cmd: any, opts: any) {
+    // Intercept security find-generic-password calls
     if (Array.isArray(cmd) && cmd[0] === 'security' && cmd[1] === 'find-generic-password') {
-      const service = cmd[3];
+      const service = cmd[3]; // -s <service>
+      // Return test password for any known test service
       return {
         stdout: new ReadableStream({
           start(controller) {
@@ -105,9 +146,11 @@ beforeAll(async () => {
         kill: () => {},
       };
     }
+    // Pass through other spawn calls
     return origSpawn(cmd, opts);
   };
 
+  // Import the module (uses our mocked Bun.spawn)
   const mod = await import('../src/cookie-import-browser');
   findInstalledBrowsers = mod.findInstalledBrowsers;
   listDomains = mod.listDomains;
@@ -116,20 +159,38 @@ beforeAll(async () => {
 });
 
 afterAll(() => {
+  // Clean up fixture DB
   try { fs.unlinkSync(FIXTURE_DB); } catch {}
   try { fs.rmdirSync(FIXTURE_DIR); } catch {}
 });
+
+// ─── Helper: Override DB path for tests ─────────────────────────
+// The real code resolves paths via ~/Library/Application Support/<browser>/Default/Cookies
+// We need to test against our fixture DB directly. We'll test the pure decryption functions
+// by calling importCookies with a browser that points to our fixture.
+// Since the module uses a hardcoded registry, we test the decryption logic via a different approach:
+// We'll directly call the internal decryption by setting up the DB in the expected location.
+
+// For the unit tests below, we test the decryption pipeline by:
+// 1. Creating encrypted cookies with known values
+// 2. Decrypting them with the module's decryption logic
+// The actual DB path resolution is tested separately.
+
+// ─── Tests ──────────────────────────────────────────────────────
 
 describe('Cookie Import Browser', () => {
 
   describe('Decryption Pipeline', () => {
     test('encrypts and decrypts round-trip correctly', () => {
+      // Verify our test helper produces valid ciphertext
       const encrypted = encryptCookieValue('hello-world');
       expect(encrypted.slice(0, 3).toString()).toBe('v10');
 
+      // Decrypt manually to verify
       const ciphertext = encrypted.slice(3);
       const decipher = crypto.createDecipheriv('aes-128-cbc', TEST_KEY, IV);
       const plaintext = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+      // Skip 32-byte HMAC tag
       const value = plaintext.slice(32).toString('utf-8');
       expect(value).toBe('hello-world');
     });
@@ -139,7 +200,8 @@ describe('Cookie Import Browser', () => {
       const ciphertext = encrypted.slice(3);
       const decipher = crypto.createDecipheriv('aes-128-cbc', TEST_KEY, IV);
       const plaintext = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
-      expect(plaintext.length).toBe(32);
+      // 32-byte tag + empty value → slice(32) = empty
+      expect(plaintext.length).toBe(32); // just the HMAC tag, padded to block boundary? Actually 32 + 0 padded = 48
       // With PKCS7 padding: 32 bytes + 16 bytes of padding = 48 bytes padded → decrypts to 32 bytes + padding removed = 32 bytes
     });
 
@@ -222,14 +284,18 @@ describe('Cookie Import Browser', () => {
 
   describe('sameSite Mapping', () => {
     test('maps sameSite values correctly', () => {
+      // Read from fixture DB and verify mapping
       const db = new Database(FIXTURE_DB, { readonly: true });
 
+      // samesite=0 → None
       const none = db.query(`SELECT samesite FROM cookies WHERE name = 'user_token'`).get() as any;
       expect(none.samesite).toBe(0);
 
+      // samesite=1 → Lax
       const lax = db.query(`SELECT samesite FROM cookies WHERE name = 'session_id'`).get() as any;
       expect(lax.samesite).toBe(1);
 
+      // samesite=2 → Strict
       const strict = db.query(`SELECT samesite FROM cookies WHERE name = 'theme'`).get() as any;
       expect(strict.samesite).toBe(2);
 
@@ -239,7 +305,8 @@ describe('Cookie Import Browser', () => {
 
   describe('Chromium Epoch Conversion', () => {
     test('converts Chromium epoch to Unix timestamp correctly', () => {
-      const knownUnix = 1704067200;
+      // Round-trip: pick a known Unix timestamp, convert to Chromium, convert back
+      const knownUnix = 1704067200; // 2024-01-01T00:00:00Z
       const chromiumTs = BigInt(knownUnix) * 1000000n + CHROMIUM_EPOCH_OFFSET;
       const unixTs = Number((chromiumTs - CHROMIUM_EPOCH_OFFSET) / 1000000n);
       expect(unixTs).toBe(knownUnix);
@@ -276,6 +343,7 @@ describe('Cookie Import Browser', () => {
     test('findInstalledBrowsers returns array', () => {
       const browsers = findInstalledBrowsers();
       expect(Array.isArray(browsers)).toBe(true);
+      // Each entry should have the right shape
       for (const b of browsers) {
         expect(b).toHaveProperty('name');
         expect(b).toHaveProperty('dataDir');
@@ -298,6 +366,9 @@ describe('Cookie Import Browser', () => {
 
   describe('Profile Validation', () => {
     test('rejects path traversal in profile names', () => {
+      // The validateProfile function should reject profiles with / or ..
+      // We can't call it directly (internal), but we can test via listDomains
+      // which calls validateProfile
       expect(() => listDomains('chrome', '../etc')).toThrow(/Invalid profile/);
       expect(() => listDomains('chrome', 'Default/../../etc')).toThrow(/Invalid profile/);
     });

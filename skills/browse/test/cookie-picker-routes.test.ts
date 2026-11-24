@@ -1,5 +1,14 @@
+/**
+ * Tests for cookie-picker route handler
+ *
+ * Tests the HTTP glue layer directly with mock BrowserManager objects.
+ * Verifies that all routes return valid JSON (not HTML) with correct CORS headers.
+ */
+
 import { describe, test, expect } from 'bun:test';
 import { handleCookiePickerRoute } from '../src/cookie-picker-routes';
+
+// ─── Mock BrowserManager ──────────────────────────────────────
 
 function mockBrowserManager() {
   const addedCookies: any[] = [];
@@ -30,6 +39,8 @@ function makeReq(method: string, body?: any): Request {
   }
   return new Request('http://127.0.0.1:9470', opts);
 }
+
+// ─── Tests ──────────────────────────────────────────────────────
 
 describe('cookie-picker-routes', () => {
   describe('CORS', () => {

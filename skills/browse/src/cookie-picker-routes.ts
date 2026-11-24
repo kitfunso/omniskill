@@ -1,9 +1,30 @@
+/**
+ * Cookie picker route handler — HTTP + Playwright glue
+ *
+ * Handles all /cookie-picker/* routes. Imports from cookie-import-browser.ts
+ * (decryption) and cookie-picker-ui.ts (HTML generation).
+ *
+ * Routes (no auth — localhost-only, accepted risk):
+ *   GET  /cookie-picker              → serves the picker HTML page
+ *   GET  /cookie-picker/browsers     → list installed browsers
+ *   GET  /cookie-picker/domains      → list domains + counts for a browser
+ *   POST /cookie-picker/import       → decrypt + import cookies to Playwright
+ *   POST /cookie-picker/remove       → clear cookies for domains
+ *   GET  /cookie-picker/imported     → currently imported domains + counts
+ */
+
 import type { BrowserManager } from './browser-manager';
 import { findInstalledBrowsers, listDomains, importCookies, CookieImportError, type PlaywrightCookie } from './cookie-import-browser';
 import { getCookiePickerHTML } from './cookie-picker-ui';
 
+// ─── State ──────────────────────────────────────────────────────
+// Tracks which domains were imported via the picker.
+// /imported only returns cookies for domains in this Set.
+// /remove clears from this Set.
 const importedDomains = new Set<string>();
 const importedCounts = new Map<string, number>();
+
+// ─── JSON Helpers ───────────────────────────────────────────────
 
 function corsOrigin(port: number): string {
   return `http://127.0.0.1:${port}`;
@@ -26,6 +47,8 @@ function errorResponse(message: string, code: string, opts: { port: number; stat
   );
 }
 
+// ─── Route Handler ──────────────────────────────────────────────
+
 export async function handleCookiePickerRoute(
   url: URL,
   req: Request,
@@ -34,6 +57,7 @@ export async function handleCookiePickerRoute(
   const pathname = url.pathname;
   const port = parseInt(url.port, 10) || 9400;
 
+  // CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, {
       status: 204,
@@ -46,6 +70,7 @@ export async function handleCookiePickerRoute(
   }
 
   try {
+    // GET /cookie-picker — serve the picker UI
     if (pathname === '/cookie-picker' && req.method === 'GET') {
       const html = getCookiePickerHTML(port);
       return new Response(html, {
@@ -54,6 +79,7 @@ export async function handleCookiePickerRoute(
       });
     }
 
+    // GET /cookie-picker/browsers — list installed browsers
     if (pathname === '/cookie-picker/browsers' && req.method === 'GET') {
       const browsers = findInstalledBrowsers();
       return jsonResponse({
@@ -64,6 +90,7 @@ export async function handleCookiePickerRoute(
       }, { port });
     }
 
+    // GET /cookie-picker/domains?browser=<name> — list domains + counts
     if (pathname === '/cookie-picker/domains' && req.method === 'GET') {
       const browserName = url.searchParams.get('browser');
       if (!browserName) {
@@ -76,6 +103,7 @@ export async function handleCookiePickerRoute(
       }, { port });
     }
 
+    // POST /cookie-picker/import — decrypt + import to Playwright session
     if (pathname === '/cookie-picker/import' && req.method === 'POST') {
       let body: any;
       try {
@@ -90,6 +118,7 @@ export async function handleCookiePickerRoute(
         return errorResponse("Missing or empty 'domains' array", 'missing_param', { port });
       }
 
+      // Decrypt cookies from the browser DB
       const result = await importCookies(browser, domains);
 
       if (result.cookies.length === 0) {
@@ -103,9 +132,11 @@ export async function handleCookiePickerRoute(
         }, { port });
       }
 
+      // Add to Playwright context
       const page = bm.getPage();
       await page.context().addCookies(result.cookies);
 
+      // Track what was imported
       for (const domain of Object.keys(result.domainCounts)) {
         importedDomains.add(domain);
         importedCounts.set(domain, (importedCounts.get(domain) || 0) + result.domainCounts[domain]);
@@ -120,6 +151,7 @@ export async function handleCookiePickerRoute(
       }, { port });
     }
 
+    // POST /cookie-picker/remove — clear cookies for domains
     if (pathname === '/cookie-picker/remove' && req.method === 'POST') {
       let body: any;
       try {
@@ -149,6 +181,7 @@ export async function handleCookiePickerRoute(
       }, { port });
     }
 
+    // GET /cookie-picker/imported — currently imported domains + counts
     if (pathname === '/cookie-picker/imported' && req.method === 'GET') {
       const entries: Array<{ domain: string; count: number }> = [];
       for (const domain of importedDomains) {

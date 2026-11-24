@@ -1,3 +1,10 @@
+/**
+ * Read commands — extract data from pages without side effects
+ *
+ * text, html, links, forms, accessibility, js, eval, css, attrs,
+ * console, network, cookies, storage, perf
+ */
+
 import type { BrowserManager } from './browser-manager';
 import { consoleBuffer, networkBuffer, dialogBuffer } from './buffers';
 import type { Page } from 'playwright';
@@ -5,11 +12,13 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { TEMP_DIR, isPathWithin } from './platform';
 
+/** Detect await keyword, ignoring comments. Accepted risk: await in string literals triggers wrapping (harmless). */
 function hasAwait(code: string): boolean {
   const stripped = code.replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
   return /\bawait\b/.test(stripped);
 }
 
+/** Detect whether code needs a block wrapper {…} vs expression wrapper (…) inside an async IIFE. */
 function needsBlockWrapper(code: string): boolean {
   const trimmed = code.trim();
   if (trimmed.split('\n').length > 1) return true;
@@ -18,6 +27,7 @@ function needsBlockWrapper(code: string): boolean {
   return false;
 }
 
+/** Wrap code for page.evaluate(), using async IIFE with block or expression body as needed. */
 function wrapForEvaluate(code: string): string {
   if (!hasAwait(code)) return code;
   const trimmed = code.trim();
@@ -26,6 +36,7 @@ function wrapForEvaluate(code: string): string {
     : `(async()=>(${trimmed}))()`;
 }
 
+// Security: Path validation to prevent path traversal attacks
 const SAFE_DIRECTORIES = [TEMP_DIR, process.cwd()];
 
 export function validateReadPath(filePath: string): void {

@@ -1,3 +1,15 @@
+/**
+ * Shared config for browse CLI + server.
+ *
+ * Resolution:
+ *   1. BROWSE_STATE_FILE env → derive stateDir from parent
+ *   2. git rev-parse --show-toplevel → projectDir/.gstack/
+ *   3. process.cwd() fallback (non-git environments)
+ *
+ * The CLI computes the config and passes BROWSE_STATE_FILE to the
+ * spawned server. The server derives all paths from that env var.
+ */
+
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -44,7 +56,7 @@ export function resolveConfig(
   if (env.BROWSE_STATE_FILE) {
     stateFile = env.BROWSE_STATE_FILE;
     stateDir = path.dirname(stateFile);
-    projectDir = path.dirname(stateDir);
+    projectDir = path.dirname(stateDir); // parent of .gstack/
   } else {
     projectDir = getGitRoot() || process.cwd();
     stateDir = path.join(projectDir, '.gstack');
@@ -78,6 +90,7 @@ export function ensureStateDir(config: BrowseConfig): void {
     throw err;
   }
 
+  // Ensure .gstack/ is in the project's .gitignore
   const gitignorePath = path.join(config.projectDir, '.gitignore');
   try {
     const content = fs.readFileSync(gitignorePath, 'utf-8');
@@ -87,6 +100,7 @@ export function ensureStateDir(config: BrowseConfig): void {
     }
   } catch (err: any) {
     if (err.code !== 'ENOENT') {
+      // Write warning to server log (visible even in daemon mode)
       const logPath = path.join(config.stateDir, 'browse-server.log');
       try {
         fs.appendFileSync(logPath, `[${new Date().toISOString()}] Warning: could not update .gitignore at ${gitignorePath}: ${err.message}\n`);
@@ -111,6 +125,8 @@ export function getRemoteSlug(): string {
     });
     if (proc.exitCode !== 0) throw new Error('no remote');
     const url = proc.stdout.toString().trim();
+    // SSH:   git@github.com:owner/repo.git → owner-repo
+    // HTTPS: https://github.com/owner/repo.git → owner-repo
     const match = url.match(/[:/]([^/]+)\/([^/]+?)(?:\.git)?$/);
     if (match) return `${match[1]}-${match[2]}`;
     throw new Error('unparseable');

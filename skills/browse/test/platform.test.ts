@@ -27,6 +27,7 @@ describe('isPathWithin', () => {
   });
 
   test('partial prefix does not match (path traversal)', () => {
+    // /tmp-evil should NOT match /tmp
     expect(isPathWithin('/tmp-evil/foo', '/tmp')).toBe(false);
   });
 

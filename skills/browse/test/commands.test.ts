@@ -1,3 +1,10 @@
+/**
+ * Integration tests for all browse commands
+ *
+ * Tests run against a local test server serving fixture HTML files.
+ * A real browse server is started and commands are sent via the CLI HTTP interface.
+ */
+
 import { describe, test, expect, beforeAll, afterAll } from 'bun:test';
 import { startTestServer } from './test-server';
 import { BrowserManager } from '../src/browser-manager';
@@ -23,9 +30,13 @@ beforeAll(async () => {
 });
 
 afterAll(() => {
+  // Force kill browser instead of graceful close (avoids hang)
   try { testServer.server.stop(); } catch {}
+  // bm.close() can hang — just let process exit handle it
   setTimeout(() => process.exit(0), 500);
 });
+
+// ─── Navigation ─────────────────────────────────────────────────
 
 describe('Navigation', () => {
   test('goto navigates to URL', async () => {
@@ -55,6 +66,8 @@ describe('Navigation', () => {
     expect(result).toContain('Reloaded');
   });
 });
+
+// ─── Content Extraction ─────────────────────────────────────────
 
 describe('Content extraction', () => {
   beforeAll(async () => {
@@ -98,6 +111,7 @@ describe('Content extraction', () => {
     expect(forms[0].fields.length).toBeGreaterThanOrEqual(2);
     expect(forms[1].id).toBe('profile-form');
 
+    // Check field discovery
     const emailField = forms[0].fields.find((f: any) => f.name === 'email');
     expect(emailField).toBeDefined();
     expect(emailField.type).toBe('email');
@@ -110,6 +124,8 @@ describe('Content extraction', () => {
     expect(result).toContain('Hello World');
   });
 });
+
+// ─── JavaScript / CSS / Attrs ───────────────────────────────────
 
 describe('Inspection', () => {
   beforeAll(async () => {
@@ -205,6 +221,7 @@ describe('Inspection', () => {
 
   test('css returns computed property', async () => {
     const result = await handleReadCommand('css', ['h1', 'color'], bm);
+    // Navy color
     expect(result).toContain('0, 0, 128');
   });
 
@@ -222,6 +239,8 @@ describe('Inspection', () => {
   });
 });
 
+// ─── Interaction ────────────────────────────────────────────────
+
 describe('Interaction', () => {
   test('fill + click works on form', async () => {
     await handleWriteCommand('goto', [baseUrl + '/forms.html'], bm);
@@ -232,6 +251,7 @@ describe('Interaction', () => {
     result = await handleWriteCommand('fill', ['#password', 'secret123'], bm);
     expect(result).toContain('Filled');
 
+    // Verify values were set
     const emailVal = await handleReadCommand('js', ['document.querySelector("#email").value'], bm);
     expect(emailVal).toBe('test@example.com');
 
@@ -250,8 +270,10 @@ describe('Interaction', () => {
 
   test('click on option ref auto-routes to selectOption', async () => {
     await handleWriteCommand('goto', [baseUrl + '/forms.html'], bm);
+    // Reset select to default
     await handleReadCommand('js', ['document.querySelector("#role").value = ""'], bm);
     const snap = await handleMetaCommand('snapshot', [], bm, async () => {});
+    // Find an option ref (e.g., "Admin" option)
     const optionLine = snap.split('\n').find((l: string) => l.includes('[option]') && l.includes('"Admin"'));
     expect(optionLine).toBeDefined();
     const refMatch = optionLine!.match(/@(e\d+)/);
@@ -260,6 +282,7 @@ describe('Interaction', () => {
     const result = await handleWriteCommand('click', [ref], bm);
     expect(result).toContain('auto-routed');
     expect(result).toContain('Selected');
+    // Verify the select value actually changed
     const val = await handleReadCommand('js', ['document.querySelector("#role").value'], bm);
     expect(val).toBe('admin');
   });
@@ -268,7 +291,7 @@ describe('Interaction', () => {
     await handleWriteCommand('goto', [baseUrl + '/forms.html'], bm);
     try {
       await handleWriteCommand('click', ['option[value="admin"]'], bm);
-      expect(true).toBe(false);
+      expect(true).toBe(false); // Should not reach here
     } catch (err: any) {
       expect(err.message).toContain('select');
       expect(err.message).toContain('option');
@@ -298,6 +321,7 @@ describe('Interaction', () => {
     const size = await handleReadCommand('js', ['`${window.innerWidth}x${window.innerHeight}`'], bm);
     expect(size).toBe('375x812');
 
+    // Reset
     await handleWriteCommand('viewport', ['1280x720'], bm);
   });
 
@@ -312,6 +336,8 @@ describe('Interaction', () => {
     expect(val).toBe('John Doe');
   });
 });
+
+// ─── SPA / Console / Network ───────────────────────────────────
 
 describe('SPA and buffers', () => {
   test('wait handles delayed rendering', async () => {
@@ -349,10 +375,13 @@ describe('SPA and buffers', () => {
   });
 });
 
+// ─── Cookies / Storage ──────────────────────────────────────────
+
 describe('Cookies and storage', () => {
   test('cookies returns array', async () => {
     await handleWriteCommand('goto', [baseUrl + '/basic.html'], bm);
     const result = await handleReadCommand('cookies', [], bm);
+    // Test server doesn't set cookies, so empty array
     expect(result).toBe('[]');
   });
 
@@ -364,6 +393,8 @@ describe('Cookies and storage', () => {
   });
 });
 
+// ─── Performance ────────────────────────────────────────────────
+
 describe('Performance', () => {
   test('perf returns timing data', async () => {
     await handleWriteCommand('goto', [baseUrl + '/basic.html'], bm);
@@ -374,6 +405,8 @@ describe('Performance', () => {
     expect(result).toContain('ms');
   });
 });
+
+// ─── Visual ─────────────────────────────────────────────────────
 
 describe('Visual', () => {
   test('screenshot saves file', async () => {
@@ -500,11 +533,14 @@ describe('Visual', () => {
     expect(fs.existsSync(`${prefix}-tablet.png`)).toBe(true);
     expect(fs.existsSync(`${prefix}-desktop.png`)).toBe(true);
 
+    // Cleanup
     fs.unlinkSync(`${prefix}-mobile.png`);
     fs.unlinkSync(`${prefix}-tablet.png`);
     fs.unlinkSync(`${prefix}-desktop.png`);
   });
 });
+
+// ─── Tabs ───────────────────────────────────────────────────────
 
 describe('Tabs', () => {
   test('tabs lists all tabs', async () => {
@@ -528,6 +564,7 @@ describe('Tabs', () => {
 
   test('closetab closes a tab', async () => {
     const before = bm.getTabCount();
+    // Close the last opened tab
     const tabs = await bm.getTabListWithTitles();
     const lastTab = tabs[tabs.length - 1];
     const result = await handleMetaCommand('closetab', [String(lastTab.id)], bm, async () => {});
@@ -535,6 +572,8 @@ describe('Tabs', () => {
     expect(bm.getTabCount()).toBe(before - 1);
   });
 });
+
+// ─── Diff ───────────────────────────────────────────────────────
 
 describe('Diff', () => {
   test('diff shows differences between pages', async () => {
@@ -546,10 +585,13 @@ describe('Diff', () => {
     );
     expect(result).toContain('---');
     expect(result).toContain('+++');
+    // basic.html has "Hello World", forms.html has "Form Test Page"
     expect(result).toContain('Hello World');
     expect(result).toContain('Form Test Page');
   });
 });
+
+// ─── Chain ──────────────────────────────────────────────────────
 
 describe('Chain', () => {
   test('chain executes sequence of commands', async () => {
@@ -575,6 +617,8 @@ describe('Chain', () => {
   });
 });
 
+// ─── Status ─────────────────────────────────────────────────────
+
 describe('Status', () => {
   test('status reports health', async () => {
     const result = await handleMetaCommand('status', [], bm, async () => {});
@@ -582,6 +626,8 @@ describe('Status', () => {
     expect(result).toContain('Tabs:');
   });
 });
+
+// ─── CLI server script resolution ───────────────────────────────
 
 describe('CLI server script resolution', () => {
   test('prefers adjacent browse/src/server.ts for compiled project installs', () => {
@@ -604,6 +650,8 @@ describe('CLI server script resolution', () => {
     fs.rmSync(root, { recursive: true, force: true });
   });
 });
+
+// ─── CLI lifecycle ──────────────────────────────────────────────
 
 describe('CLI lifecycle', () => {
   test('dead state file triggers a clean restart', async () => {
@@ -647,6 +695,8 @@ describe('CLI lifecycle', () => {
   }, 20000);
 });
 
+// ─── Buffer bounds ──────────────────────────────────────────────
+
 describe('Buffer bounds', () => {
   test('console buffer caps at 50000 entries', () => {
     consoleBuffer.clear();
@@ -686,6 +736,8 @@ describe('Buffer bounds', () => {
   });
 });
 
+// ─── CircularBuffer Unit Tests ─────────────────────────────────
+
 describe('CircularBuffer', () => {
   test('push and toArray return items in insertion order', () => {
     const buf = new CircularBuffer<number>(5);
@@ -713,7 +765,7 @@ describe('CircularBuffer', () => {
     const buf = new CircularBuffer<number>(5);
     for (let i = 1; i <= 5; i++) buf.push(i);
     expect(buf.last(3)).toEqual([3, 4, 5]);
-    expect(buf.last(10)).toEqual([1, 2, 3, 4, 5]);
+    expect(buf.last(10)).toEqual([1, 2, 3, 4, 5]); // clamped
     expect(buf.last(1)).toEqual([5]);
   });
 
@@ -747,10 +799,13 @@ describe('CircularBuffer', () => {
   });
 });
 
+// ─── Dialog Handling ─────────────────────────────────────────
+
 describe('Dialog handling', () => {
   test('alert does not hang — auto-accepted', async () => {
     await handleWriteCommand('goto', [baseUrl + '/dialog.html'], bm);
     await handleWriteCommand('click', ['#alert-btn'], bm);
+    // If we get here, dialog was handled (no hang)
     const result = await handleReadCommand('dialog', [], bm);
     expect(result).toContain('alert');
     expect(result).toContain('Hello from alert');
@@ -760,6 +815,7 @@ describe('Dialog handling', () => {
   test('confirm is auto-accepted by default', async () => {
     await handleWriteCommand('goto', [baseUrl + '/dialog.html'], bm);
     await handleWriteCommand('click', ['#confirm-btn'], bm);
+    // Wait for DOM update
     await new Promise(r => setTimeout(r, 100));
     const result = await handleReadCommand('js', ['document.querySelector("#confirm-result").textContent'], bm);
     expect(result).toBe('confirmed');
@@ -775,6 +831,7 @@ describe('Dialog handling', () => {
     const result = await handleReadCommand('js', ['document.querySelector("#confirm-result").textContent'], bm);
     expect(result).toBe('cancelled');
 
+    // Reset to accept
     await handleWriteCommand('dialog-accept', [], bm);
   });
 
@@ -788,6 +845,7 @@ describe('Dialog handling', () => {
     const result = await handleReadCommand('js', ['document.querySelector("#prompt-result").textContent'], bm);
     expect(result).toBe('TestUser');
 
+    // Reset
     await handleWriteCommand('dialog-accept', [], bm);
   });
 
@@ -798,6 +856,8 @@ describe('Dialog handling', () => {
     expect(after).toContain('no dialogs');
   });
 });
+
+// ─── Element State Checks (is) ─────────────────────────────────
 
 describe('Element state checks', () => {
   beforeAll(async () => {
@@ -857,6 +917,7 @@ describe('Element state checks', () => {
 
   test('is with @ref works', async () => {
     await handleMetaCommand('snapshot', ['-i'], bm, async () => {});
+    // Find a ref for the enabled input
     const snap = await handleMetaCommand('snapshot', ['-i'], bm, async () => {});
     const textboxLine = snap.split('\n').find(l => l.includes('[textbox]'));
     if (textboxLine) {
@@ -888,15 +949,19 @@ describe('Element state checks', () => {
   });
 });
 
+// ─── File Upload ─────────────────────────────────────────────────
+
 describe('File upload', () => {
   test('upload single file', async () => {
     await handleWriteCommand('goto', [baseUrl + '/upload.html'], bm);
+    // Create a temp file to upload
     const tempFile = '/tmp/browse-test-upload.txt';
     fs.writeFileSync(tempFile, 'test content');
     const result = await handleWriteCommand('upload', ['#file-input', tempFile], bm);
     expect(result).toContain('Uploaded');
     expect(result).toContain('browse-test-upload.txt');
 
+    // Verify upload handler fired
     await new Promise(r => setTimeout(r, 100));
     const text = await handleReadCommand('js', ['document.querySelector("#upload-result").textContent'], bm);
     expect(text).toContain('browse-test-upload.txt');
@@ -908,6 +973,7 @@ describe('File upload', () => {
     const tempFile = '/tmp/browse-test-upload2.txt';
     fs.writeFileSync(tempFile, 'ref upload test');
     const snap = await handleMetaCommand('snapshot', ['-i'], bm, async () => {});
+    // Find the file input ref (it won't appear as "file input" in aria — use CSS selector instead)
     const result = await handleWriteCommand('upload', ['#file-input', tempFile], bm);
     expect(result).toContain('Uploaded');
     fs.unlinkSync(tempFile);
@@ -932,6 +998,8 @@ describe('File upload', () => {
     }
   });
 });
+
+// ─── Eval command ───────────────────────────────────────────────
 
 describe('Eval', () => {
   test('eval runs JS file', async () => {
@@ -972,6 +1040,8 @@ describe('Eval', () => {
   });
 });
 
+// ─── Press command ──────────────────────────────────────────────
+
 describe('Press', () => {
   test('press Tab moves focus', async () => {
     await handleWriteCommand('goto', [baseUrl + '/forms.html'], bm);
@@ -989,6 +1059,8 @@ describe('Press', () => {
     }
   });
 });
+
+// ─── Cookie command ─────────────────────────────────────────────
 
 describe('Cookie command', () => {
   test('cookie sets value', async () => {
@@ -1020,6 +1092,8 @@ describe('Cookie command', () => {
   });
 });
 
+// ─── Header command ─────────────────────────────────────────────
+
 describe('Header command', () => {
   test('header sets value and is sent', async () => {
     const result = await handleWriteCommand('header', ['X-Test:test-value'], bm);
@@ -1050,6 +1124,8 @@ describe('Header command', () => {
   });
 });
 
+// ─── PDF command ────────────────────────────────────────────────
+
 describe('PDF', () => {
   test('pdf saves file with size', async () => {
     await handleWriteCommand('goto', [baseUrl + '/basic.html'], bm);
@@ -1062,6 +1138,8 @@ describe('PDF', () => {
     fs.unlinkSync(pdfPath);
   });
 });
+
+// ─── Empty page edge cases ──────────────────────────────────────
 
 describe('Empty page', () => {
   test('text returns empty on empty page', async () => {
@@ -1081,7 +1159,10 @@ describe('Empty page', () => {
   });
 });
 
+// ─── Error paths ────────────────────────────────────────────────
+
 describe('Errors', () => {
+  // Write command errors
   test('goto with no arg throws', async () => {
     try {
       await handleWriteCommand('goto', [], bm);
@@ -1163,6 +1244,7 @@ describe('Errors', () => {
     }
   });
 
+  // Read command errors
   test('js with no expression throws', async () => {
     try {
       await handleReadCommand('js', [], bm);
@@ -1190,6 +1272,7 @@ describe('Errors', () => {
     }
   });
 
+  // Meta command errors
   test('tab with non-numeric id throws', async () => {
     try {
       await handleMetaCommand('tab', ['abc'], bm, async () => {});
@@ -1254,15 +1337,20 @@ describe('Errors', () => {
   });
 });
 
+// ─── Workflow: Navigation + Snapshot + Interaction ───────────────
+
 describe('Workflows', () => {
   test('navigation → snapshot → click @ref → verify URL', async () => {
     await handleWriteCommand('goto', [baseUrl + '/snapshot.html'], bm);
     const snap = await handleMetaCommand('snapshot', ['-i'], bm, async () => {});
+    // Find a link ref
     const linkLine = snap.split('\n').find(l => l.includes('[link]'));
     expect(linkLine).toBeDefined();
     const refMatch = linkLine!.match(/@(e\d+)/);
     expect(refMatch).toBeDefined();
+    // Click the link
     await handleWriteCommand('click', [`@${refMatch![1]}`], bm);
+    // URL should have changed
     const url = await handleMetaCommand('url', [], bm, async () => {});
     expect(url).toBeTruthy();
   });
@@ -1270,6 +1358,7 @@ describe('Workflows', () => {
   test('form: goto → snapshot → fill @ref → click @ref', async () => {
     await handleWriteCommand('goto', [baseUrl + '/snapshot.html'], bm);
     const snap = await handleMetaCommand('snapshot', ['-i'], bm, async () => {});
+    // Find textbox and button
     const textboxLine = snap.split('\n').find(l => l.includes('[textbox]'));
     const buttonLine = snap.split('\n').find(l => l.includes('[button]') && l.includes('"Submit"'));
     if (textboxLine && buttonLine) {
@@ -1289,6 +1378,7 @@ describe('Workflows', () => {
     const url = await handleMetaCommand('url', [], bm, async () => {});
     expect(url).toContain('/forms.html');
 
+    // Switch back to previous tab
     const tabs = await bm.getTabListWithTitles();
     const prevTab = tabs.find(t => t.url.includes('/basic.html'));
     if (prevTab) {
@@ -1297,6 +1387,7 @@ describe('Workflows', () => {
       expect(url2).toContain('/basic.html');
     }
 
+    // Clean up extra tab
     const allTabs = await bm.getTabListWithTitles();
     const formTab = allTabs.find(t => t.url.includes('/forms.html'));
     if (formTab) await bm.closeTab(formTab.id);
@@ -1311,6 +1402,8 @@ describe('Workflows', () => {
     expect(cookies).toContain('persisted');
   });
 });
+
+// ─── Wait load states ──────────────────────────────────────────
 
 describe('Wait load states', () => {
   test('wait --networkidle succeeds after page load', async () => {
@@ -1344,10 +1437,14 @@ describe('Wait load states', () => {
   });
 });
 
+// ─── Console --errors ──────────────────────────────────────────
+
 describe('Console --errors', () => {
   test('console --errors filters to error and warning only', async () => {
+    // Clear existing entries
     await handleReadCommand('console', ['--clear'], bm);
 
+    // Add mixed entries
     addConsoleEntry({ timestamp: Date.now(), level: 'log', text: 'info message' });
     addConsoleEntry({ timestamp: Date.now(), level: 'warning', text: 'warn message' });
     addConsoleEntry({ timestamp: Date.now(), level: 'error', text: 'error message' });
@@ -1357,6 +1454,7 @@ describe('Console --errors', () => {
     expect(result).toContain('error message');
     expect(result).not.toContain('info message');
 
+    // Cleanup
     consoleBuffer.clear();
   });
 
@@ -1387,6 +1485,8 @@ describe('Console --errors', () => {
   });
 });
 
+// ─── Cookie Import ─────────────────────────────────────────────
+
 describe('Cookie import', () => {
   test('cookie-import loads valid JSON cookies', async () => {
     await handleWriteCommand('goto', [baseUrl + '/basic.html'], bm);
@@ -1400,6 +1500,7 @@ describe('Cookie import', () => {
     const result = await handleWriteCommand('cookie-import', [tempFile], bm);
     expect(result).toBe('Loaded 2 cookies from /tmp/browse-test-cookies.json');
 
+    // Verify cookies were set
     const cookieList = await handleReadCommand('cookies', [], bm);
     expect(cookieList).toContain('test-cookie');
     expect(cookieList).toContain('test-value');
@@ -1411,6 +1512,7 @@ describe('Cookie import', () => {
   test('cookie-import auto-fills domain from page URL', async () => {
     await handleWriteCommand('goto', [baseUrl + '/basic.html'], bm);
     const tempFile = '/tmp/browse-test-cookies-nodomain.json';
+    // Cookies without domain — should auto-fill from page URL
     const cookies = [{ name: 'autofill-test', value: 'works' }];
     fs.writeFileSync(tempFile, JSON.stringify(cookies));
 
@@ -1508,6 +1610,8 @@ describe('Cookie import', () => {
   });
 });
 
+// ─── Security: Redact sensitive values (PR #21) ─────────────────
+
 describe('Sensitive value redaction', () => {
   test('type command does not echo typed text', async () => {
     await handleWriteCommand('goto', [baseUrl + '/basic.html'], bm);
@@ -1556,6 +1660,7 @@ describe('Sensitive value redaction', () => {
     await handleWriteCommand('goto', [baseUrl + '/forms.html'], bm);
     const formsResult = await handleReadCommand('forms', [], bm);
     const forms = JSON.parse(formsResult);
+    // Find password fields and verify they're redacted
     for (const form of forms) {
       for (const field of form.fields) {
         if (field.type === 'password') {
@@ -1565,6 +1670,8 @@ describe('Sensitive value redaction', () => {
     }
   });
 });
+
+// ─── Security: Path traversal prevention (PR #26) ───────────────
 
 describe('Path traversal prevention', () => {
   test('screenshot rejects path outside safe dirs', async () => {
@@ -1663,6 +1770,7 @@ describe('Path traversal prevention', () => {
 
   test('snapshot -a -o rejects path outside safe dirs', async () => {
     await handleWriteCommand('goto', [baseUrl + '/basic.html'], bm);
+    // First get a snapshot so refs exist
     await handleMetaCommand('snapshot', ['-i'], bm, () => {});
     try {
       await handleMetaCommand('snapshot', ['-a', '-o', '/etc/evil.png'], bm, () => {});
@@ -1672,6 +1780,8 @@ describe('Path traversal prevention', () => {
     }
   });
 });
+
+// ─── Chain command: cookie-import in chain ──────────────────────
 
 describe('Chain with cookie-import', () => {
   test('cookie-import works inside chain', async () => {

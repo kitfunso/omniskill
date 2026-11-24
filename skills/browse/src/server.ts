@@ -1,3 +1,18 @@
+/**
+ * gstack browse server — persistent Chromium daemon
+ *
+ * Architecture:
+ *   Bun.serve HTTP on localhost → routes commands to Playwright
+ *   Console/network/dialog buffers: CircularBuffer in-memory + async disk flush
+ *   Chromium crash → server EXITS with clear error (CLI auto-restarts)
+ *   Auto-shutdown after BROWSE_IDLE_TIMEOUT (default 30 min)
+ *
+ * State:
+ *   State file: <project-root>/.gstack/browse.json (set via BROWSE_STATE_FILE env)
+ *   Log files:  <project-root>/.gstack/browse-{console,network,dialog}.log
+ *   Port:       random 10000-60000 (or BROWSE_PORT env for debug override)
+ */
+
 import { BrowserManager } from './browser-manager';
 import { handleReadCommand } from './read-commands';
 import { handleWriteCommand } from './write-commands';
@@ -10,19 +25,23 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
 
+// ─── Config ─────────────────────────────────────────────────────
 const config = resolveConfig();
 ensureStateDir(config);
 
+// ─── Auth ───────────────────────────────────────────────────────
 const AUTH_TOKEN = crypto.randomUUID();
 const BROWSE_PORT = parseInt(process.env.BROWSE_PORT || '0', 10);
-const IDLE_TIMEOUT_MS = parseInt(process.env.BROWSE_IDLE_TIMEOUT || '1800000', 10);
+const IDLE_TIMEOUT_MS = parseInt(process.env.BROWSE_IDLE_TIMEOUT || '1800000', 10); // 30 min
 
 function validateAuth(req: Request): boolean {
   const header = req.headers.get('authorization');
   return header === `Bearer ${AUTH_TOKEN}`;
 }
 
+// ─── Help text (auto-generated from COMMAND_DESCRIPTIONS) ────────
 function generateHelpText(): string {
+  // Group commands by category
   const groups = new Map<string, string[]>();
   for (const [cmd, meta] of Object.entries(COMMAND_DESCRIPTIONS)) {
     const display = meta.usage || cmd;
@@ -43,6 +62,7 @@ function generateHelpText(): string {
     lines.push(`  ${(cat + ':').padEnd(15)}${cmds.join(', ')}`);
   }
 
+  // Snapshot flags from source of truth
   lines.push('');
   lines.push('Snapshot flags:');
   const flagPairs: string[] = [];
@@ -50,6 +70,7 @@ function generateHelpText(): string {
     const label = flag.valueHint ? `${flag.short} ${flag.valueHint}` : flag.short;
     flagPairs.push(`${label}  ${flag.long}`);
   }
+  // Print two flags per line for compact display
   for (let i = 0; i < flagPairs.length; i += 2) {
     const left = flagPairs[i].padEnd(28);
     const right = flagPairs[i + 1] || '';
@@ -59,6 +80,7 @@ function generateHelpText(): string {
   return lines.join('\n');
 }
 
+// ─── Buffer (from buffers.ts) ────────────────────────────────────
 import { consoleBuffer, networkBuffer, dialogBuffer, addConsoleEntry, addNetworkEntry, addDialogEntry, type LogEntry, type NetworkEntry, type DialogEntry } from './buffers';
 export { consoleBuffer, networkBuffer, dialogBuffer, addConsoleEntry, addNetworkEntry, addDialogEntry, type LogEntry, type NetworkEntry, type DialogEntry };
 
@@ -71,10 +93,11 @@ let lastDialogFlushed = 0;
 let flushInProgress = false;
 
 async function flushBuffers() {
-  if (flushInProgress) return;
+  if (flushInProgress) return; // Guard against concurrent flush
   flushInProgress = true;
 
   try {
+    // Console buffer
     const newConsoleCount = consoleBuffer.totalAdded - lastConsoleFlushed;
     if (newConsoleCount > 0) {
       const entries = consoleBuffer.last(Math.min(newConsoleCount, consoleBuffer.length));
@@ -85,6 +108,7 @@ async function flushBuffers() {
       lastConsoleFlushed = consoleBuffer.totalAdded;
     }
 
+    // Network buffer
     const newNetworkCount = networkBuffer.totalAdded - lastNetworkFlushed;
     if (newNetworkCount > 0) {
       const entries = networkBuffer.last(Math.min(newNetworkCount, networkBuffer.length));
@@ -95,6 +119,7 @@ async function flushBuffers() {
       lastNetworkFlushed = networkBuffer.totalAdded;
     }
 
+    // Dialog buffer
     const newDialogCount = dialogBuffer.totalAdded - lastDialogFlushed;
     if (newDialogCount > 0) {
       const entries = dialogBuffer.last(Math.min(newDialogCount, dialogBuffer.length));
@@ -111,8 +136,10 @@ async function flushBuffers() {
   }
 }
 
+// Flush every 1 second
 const flushInterval = setInterval(flushBuffers, 1000);
 
+// ─── Idle Timer ────────────────────────────────────────────────
 let lastActivity = Date.now();
 
 function resetIdleTimer() {
@@ -126,13 +153,17 @@ const idleCheckInterval = setInterval(() => {
   }
 }, 60_000);
 
+// ─── Command Sets (from commands.ts — single source of truth) ───
 import { READ_COMMANDS, WRITE_COMMANDS, META_COMMANDS } from './commands';
 export { READ_COMMANDS, WRITE_COMMANDS, META_COMMANDS };
 
+// ─── Server ────────────────────────────────────────────────────
 const browserManager = new BrowserManager();
 let isShuttingDown = false;
 
+// Find port: explicit BROWSE_PORT, or random in 10000-60000
 async function findPort(): Promise<number> {
+  // Explicit port override (for debugging)
   if (BROWSE_PORT) {
     try {
       const testServer = Bun.serve({ port: BROWSE_PORT, fetch: () => new Response('ok') });
@@ -143,6 +174,7 @@ async function findPort(): Promise<number> {
     }
   }
 
+  // Random port with retry
   const MIN_PORT = 10000;
   const MAX_PORT = 60000;
   const MAX_RETRIES = 5;
@@ -159,8 +191,12 @@ async function findPort(): Promise<number> {
   throw new Error(`[browse] No available port after ${MAX_RETRIES} attempts in range ${MIN_PORT}-${MAX_PORT}`);
 }
 
+/**
+ * Translate Playwright errors into actionable messages for AI agents.
+ */
 function wrapError(err: any): string {
   const msg = err.message || String(err);
+  // Timeout errors
   if (err.name === 'TimeoutError' || msg.includes('Timeout') || msg.includes('timeout')) {
     if (msg.includes('locator.click') || msg.includes('locator.fill') || msg.includes('locator.hover')) {
       return `Element not found or not interactable within timeout. Check your selector or run 'snapshot' for fresh refs.`;
@@ -170,9 +206,11 @@ function wrapError(err: any): string {
     }
     return `Operation timed out: ${msg.split('\n')[0]}`;
   }
+  // Multiple elements matched
   if (msg.includes('resolved to') && msg.includes('elements')) {
     return `Selector matched multiple elements. Be more specific or use @refs from 'snapshot'.`;
   }
+  // Pass through other errors
   return msg;
 }
 
@@ -235,25 +273,30 @@ async function shutdown() {
   console.log('[browse] Shutting down...');
   clearInterval(flushInterval);
   clearInterval(idleCheckInterval);
-  await flushBuffers();
+  await flushBuffers(); // Final flush (async now)
 
   await browserManager.close();
 
+  // Clean up state file
   try { fs.unlinkSync(config.stateFile); } catch {}
 
   process.exit(0);
 }
 
+// Handle signals
 process.on('SIGTERM', shutdown);
 process.on('SIGINT', shutdown);
 
+// ─── Start ─────────────────────────────────────────────────────
 async function start() {
+  // Clear old log files
   try { fs.unlinkSync(CONSOLE_LOG_PATH); } catch {}
   try { fs.unlinkSync(NETWORK_LOG_PATH); } catch {}
   try { fs.unlinkSync(DIALOG_LOG_PATH); } catch {}
 
   const port = await findPort();
 
+  // Launch browser
   await browserManager.launch();
 
   const startTime = Date.now();
@@ -265,10 +308,12 @@ async function start() {
 
       const url = new URL(req.url);
 
+      // Cookie picker routes — no auth required (localhost-only)
       if (url.pathname.startsWith('/cookie-picker')) {
         return handleCookiePickerRoute(url, req, browserManager);
       }
 
+      // Health check — no auth required (now async)
       if (url.pathname === '/health') {
         const healthy = await browserManager.isHealthy();
         return new Response(JSON.stringify({
@@ -282,6 +327,7 @@ async function start() {
         });
       }
 
+      // All other endpoints require auth
       if (!validateAuth(req)) {
         return new Response(JSON.stringify({ error: 'Unauthorized' }), {
           status: 401,
@@ -298,6 +344,7 @@ async function start() {
     },
   });
 
+  // Write state file (atomic: write .tmp then rename)
   const state = {
     pid: process.pid,
     port,

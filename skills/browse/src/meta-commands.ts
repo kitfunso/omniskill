@@ -1,3 +1,7 @@
+/**
+ * Meta commands — tabs, server control, screenshots, chain, diff, snapshot
+ */
+
 import type { BrowserManager } from './browser-manager';
 import { handleSnapshot } from './snapshot';
 import { getCleanText } from './read-commands';
@@ -8,6 +12,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { TEMP_DIR, isPathWithin } from './platform';
 
+// Security: Path validation to prevent path traversal attacks
 const SAFE_DIRECTORIES = [TEMP_DIR, process.cwd()];
 
 export function validateOutputPath(filePath: string): void {
@@ -25,6 +30,7 @@ export async function handleMetaCommand(
   shutdown: () => Promise<void> | void
 ): Promise<string> {
   switch (command) {
+    // ─── Tabs ──────────────────────────────────────────
     case 'tabs': {
       const tabs = await bm.getTabListWithTitles();
       return tabs.map(t =>
@@ -51,6 +57,7 @@ export async function handleMetaCommand(
       return `Closed tab${id ? ` ${id}` : ''}`;
     }
 
+    // ─── Server Control ────────────────────────────────
     case 'status': {
       const page = bm.getPage();
       const tabs = bm.getTabCount();
@@ -72,12 +79,15 @@ export async function handleMetaCommand(
     }
 
     case 'restart': {
+      // Signal that we want a restart — the CLI will detect exit and restart
       console.log('[browse] Restart requested. Exiting for CLI to restart.');
       await shutdown();
       return 'Restarting...';
     }
 
+    // ─── Visual ────────────────────────────────────────
     case 'screenshot': {
+      // Parse priority: flags (--viewport, --clip) → selector (@ref, CSS) → output path
       const page = bm.getPage();
       let outputPath = `${TEMP_DIR}/browse-screenshot.png`;
       let clipRect: { x: number; y: number; width: number; height: number } | undefined;
@@ -102,6 +112,7 @@ export async function handleMetaCommand(
         }
       }
 
+      // Separate target (selector/@ref) from output path
       for (const arg of remaining) {
         if (arg.startsWith('@e') || arg.startsWith('@c') || arg.startsWith('.') || arg.startsWith('#') || arg.includes('[')) {
           targetSelector = arg;
@@ -162,6 +173,7 @@ export async function handleMetaCommand(
         results.push(`${vp.name} (${vp.width}x${vp.height}): ${path}`);
       }
 
+      // Restore original viewport
       if (originalViewport) {
         await page.setViewportSize(originalViewport);
       }
@@ -169,7 +181,9 @@ export async function handleMetaCommand(
       return results.join('\n');
     }
 
+    // ─── Chain ─────────────────────────────────────────
     case 'chain': {
+      // Read JSON array from args[0] (if provided) or expect it was passed as body
       const jsonStr = args[0];
       if (!jsonStr) throw new Error('Usage: echo \'[["goto","url"],["text"]]\' | browse chain');
 
@@ -203,6 +217,7 @@ export async function handleMetaCommand(
       return results.join('\n\n');
     }
 
+    // ─── Diff ──────────────────────────────────────────
     case 'diff': {
       const [url1, url2] = args;
       if (!url1 || !url2) throw new Error('Usage: browse diff <url1> <url2>');
@@ -230,10 +245,12 @@ export async function handleMetaCommand(
       return output.join('\n');
     }
 
+    // ─── Snapshot ─────────────────────────────────────
     case 'snapshot': {
       return await handleSnapshot(args, bm);
     }
 
+    // ─── Handoff ────────────────────────────────────
     case 'handoff': {
       const message = args.join(' ') || 'User takeover requested';
       return await bm.handoff(message);
@@ -241,6 +258,7 @@ export async function handleMetaCommand(
 
     case 'resume': {
       bm.resume();
+      // Re-snapshot to capture current page state after human interaction
       const snapshot = await handleSnapshot(['-i'], bm);
       return `RESUMED\n${snapshot}`;
     }
